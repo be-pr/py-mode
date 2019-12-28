@@ -232,11 +232,11 @@ With an \\[universal-argument], specify the path to the executable."
               (format "*python[%s]*" (buffer-name)))))
   (let ((buf (or (py-repl-process-buffer)
                  (get-buffer-create "*python*")))
-        (path (concat py-mode-path "pymodehelpers.py"))
+        (path (concat py-mode-path "utils.py"))
         (startup (getenv "PYTHONSTARTUP")))
     (when (and startup (not (equal startup path)))
       (message "An existing PYTHONSTARTUP has been replaced"))
-    ;; Avoid __pycache__ and run pymodehelpers as a startup script.
+    ;; Avoid __pycache__ and run utils.py as a startup script.
     (setenv "PYTHONSTARTUP" path)
     (make-comint-in-buffer
      "Py REPL" buf
