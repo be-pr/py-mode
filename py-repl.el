@@ -77,16 +77,16 @@
     ""))
 
 (defun py-repl--send (proc str)
-  (get-buffer-create " *py-repl tempbuf*")
-  (with-current-buffer (process-buffer proc)
-    (add-hook 'comint-preoutput-filter-functions
-              #'py-repl--filter nil t))
-  (process-send-string proc str)
-  (process-send-string proc "\n")
-  (let (inhibit-quit)
-    ;; Intentionally block further execution until the subprocess returns.
-    (while (get-buffer " *py-repl tempbuf*")
-      (accept-process-output proc))))
+  (let ((buf (get-buffer-create " *py-repl tempbuf*")))
+    (with-current-buffer (process-buffer proc)
+      (add-hook 'comint-preoutput-filter-functions
+                #'py-repl--filter nil t))
+    (process-send-string proc str)
+    (process-send-string proc "\n")
+    (let (inhibit-quit)
+      ;; Intentionally block further execution until the subprocess returns.
+      (while (buffer-live-p buf)
+        (accept-process-output proc)))))
 
 (defun py-repl-send (proc str)
   (declare (indent 1))

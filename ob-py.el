@@ -46,7 +46,7 @@ This function is called by `org-babel-execute-src-block'."
             result
           (ob-py--lispify proc py-repl-output)
           (let ((obj (read py-repl-output)))
-            (when (listp obj)
+            (when (consp obj)
               (setq table-form obj))
             (cond
               ((consp (car table-form))
