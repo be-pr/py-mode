@@ -49,7 +49,8 @@
                         (error out)))
                   (`(,file . ,line)
                     (if (equal file "<stdin>")
-                        (error "%s defined at %s" str file)
+                        (or (py-xref--local-make str)
+                            (error "%s defined at <stdin>" str))
                       (py-xref--make str file line 0)))
                   ('None (error "Failed to locate %s" str))
                   ;; If all fails, search current buffer.
@@ -57,7 +58,7 @@
                          (error out)))))))
         (py-xref--local-make str)))))
 
-(defvar py-xref-rx-fmt
+(defconst py-xref-rx-fmt
   "%s\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+\\(%s\\)\\_>")
 
 (defun py-xref--search-inner-definition (str)
@@ -71,8 +72,8 @@
     (setq limit (line-beginning-position))
     (funcall end-of-defun-function)
     (when (>= (point) orig)
-      (re-search-backward (format py-xref-rx-fmt "^[ \t]+" str)
-                          limit t 1))))
+      (re-search-backward
+       (format py-xref-rx-fmt "^[ \t]+" str) limit t 1))))
 
 (defun py-xref--local-make (str)
   (save-excursion
