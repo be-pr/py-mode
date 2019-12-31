@@ -211,7 +211,6 @@
                 (comment-region end (point)))
             (message "%s" str)))))))
 
-;;;###autoload
 (defun py-switch-to-repl (&optional arg)
   (interactive "P")
   (if-let* ((proc (get-buffer-process (py-repl-process-buffer))))
@@ -219,7 +218,6 @@
     (when (yes-or-no-p "Start inferior Python process?")
       (run-py arg))))
 
-;;;###autoload
 (defun run-py (&optional arg)
   "Run an inferior Python process.
 With an \\[universal-argument], specify the path to the executable."

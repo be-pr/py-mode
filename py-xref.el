@@ -28,7 +28,6 @@
 
 (declare-function py--object-at-point "py-mode")
 
-;;;###autoload
 (defun py-xref-backend () 'python)
 
 (cl-defmethod xref-backend-identifier-at-point
@@ -76,8 +75,8 @@
 (defun py-xref--local-make (str)
   (save-excursion
     (when (or (py-xref--search-inner-definition str)
-              (progn (goto-char (point-min))
-                     (re-search-forward
+              (progn (goto-char (point-max))
+                     (re-search-backward
                       (format py-xref-rx-fmt str) nil t 1)))
       (let ((file (buffer-file-name)))
         (if file

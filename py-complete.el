@@ -57,7 +57,6 @@
 
 (defalias 'py-complete-table (py-complete--table-create))
 
-;;;###autoload
 (defun py-completion-function ()
   (save-excursion
     (skip-syntax-forward "w_")

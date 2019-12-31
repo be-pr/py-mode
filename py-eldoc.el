@@ -57,7 +57,6 @@
                 (setq last-sig (match-string 1 sig))
                 (eldoc-message last-sig)))))))))
 
-;;;###autoload
 (defalias 'py-eldoc-documentation-function (py-eldoc--create))
 
 

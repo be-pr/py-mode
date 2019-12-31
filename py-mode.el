@@ -194,7 +194,6 @@
                  start (1+ start)
                  'syntax-table delimiter)))))))))
 
-;;;###autoload
 (define-derived-mode py-mode prog-mode
   "Py" "Major mode for editing Python code.
 \\{py-mode-map}"
