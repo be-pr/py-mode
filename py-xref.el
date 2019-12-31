@@ -35,57 +35,63 @@
     ((_backend (eql python)))
   (py--object-at-point))
 
-(cl-defmethod xref-backend-definitions ((_backend (eql python)) id)
+(cl-defmethod xref-backend-definitions ((_backend (eql python)) str)
   (let ((proc (get-buffer-process (py-repl-process-buffer))))
     (if (not proc)
-        (py-xref--find-definition id)
+        (py-xref--local-make str)
       (if (py-repl-send proc
-            (format "print(_get_location(%S))" id))
+            (format "print(_get_location(%S))" str))
           (when py-repl-output
             (let ((out (string-trim-right py-repl-output "\n")))
               (unless (string-empty-p out)
                 (pcase (read out)
                   (`(quote ,_)
-                    (or (py-xref--find-definition id)
-                        (user-error out)))
+                    (or (py-xref--local-make str)
+                        (error out)))
                   (`(,file . ,line)
                     (if (equal file "<stdin>")
-                        (user-error "%s defined at %s" id file)
-                      (list (py-xref--make-xref id file line))))
-                  ('None (user-error "Failed to locate %s" id))
-                  ;; If all fails, regexp search for the identifier in the
-                  ;; current buffer.
-                  (_ (or (py-xref--find-definition id)
-                         (user-error out)))))))
-        (py-xref--find-definition id)))))
+                        (error "%s defined at %s" str file)
+                      (py-xref--make str file line 0)))
+                  ('None (error "Failed to locate %s" str))
+                  ;; If all fails, search current buffer.
+                  (_ (or (py-xref--local-make str)
+                         (error out)))))))
+        (py-xref--local-make str)))))
 
-(defun py-xref--re-search-identifier (id &optional end)
-  (let ((rx (concat "^[ \t]*\\(?:\\(?:async[ \t]+\\)?def\\|class\\)"
-                    "[ \t]+" id "\\_>")))
-    (and (buffer-file-name)
-         (re-search-forward rx end t 1)
-         (list (py-xref--make-xref
-                id (buffer-file-name) (line-number-at-pos))))))
+(defvar py-xref-rx-fmt
+  "^[ \t]*\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+\\(%s\\)\\_>")
 
-(defun py-xref--find-definition (id)
+(defun py-xref--search-inner-definition (str)
+  ;; Possibly strip "self" or "cls" from local definitions.
+  (when (string-match "[^.]+\\.\\([^.]+\\)" str)
+    (setq str (match-string 1 str)))
+  (let (limit)
+    (funcall beginning-of-defun-function)
+    (while (not (bolp))
+      (funcall beginning-of-defun-function))
+    (setq limit (line-beginning-position))
+    (funcall end-of-defun-function)
+    (re-search-backward (format py-xref-rx-fmt str) limit t 1)))
+
+(defun py-xref--local-make (str)
   (save-excursion
-    ;; Possibly strip "self" or "cls" from local definitions.
-    (if (string-match "[^.]+\\.\\([^.]+\\)" id)
-        (let ((id (match-string 1 id)))
-          (funcall beginning-of-defun-function)
-          ;; Goto toplevel definition.
-          (while (not (bolp))
-            (funcall beginning-of-defun-function))
-          (py-xref--re-search-identifier
-           id (save-excursion
-                (funcall end-of-defun-function)
-                (point))))
-      ;; Otherwise explore the entire buffer.
-      (goto-char (point-min))
-      (py-xref--re-search-identifier id))))
+    (when (or (py-xref--search-inner-definition str)
+              (progn (goto-char (point-min))
+                     (re-search-forward
+                      (format py-xref-rx-fmt str) nil t 1)))
+      (let ((file (buffer-file-name)))
+        (if file
+            ;; For consistency with what we get out from _get_location, simply
+            ;; jump to column 0.
+            (py-xref--make str file (line-number-at-pos) 0)
+          (py-xref--make str (current-buffer) (point-at-bol)))))))
 
-(defun py-xref--make-xref (id file line)
-  (xref-make id (xref-make-file-location file line 0)))
+(defun py-xref--make (str loc &rest rest)
+  (list (xref-make
+         str (apply (if (bufferp loc)
+                        #'xref-make-buffer-location
+                      #'xref-make-file-location)
+                    loc rest))))
 
 (defalias 'py-xref-table (py-complete--table-create t))
 
