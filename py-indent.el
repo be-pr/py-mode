@@ -46,8 +46,7 @@
     (let ((state (syntax-ppss)))
       (and (eq (char-before) ?:)
            ;; Not inside string or comment.
-           (not (nth 3 state))
-           (not (nth 4 state))))))
+           (not (nth 8 state))))))
 
 (defun py-indent--dedent (arg)
   (unless (zerop (current-indentation))

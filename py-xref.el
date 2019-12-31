@@ -58,26 +58,28 @@
         (py-xref--local-make str)))))
 
 (defvar py-xref-rx-fmt
-  "^[ \t]*\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+\\(%s\\)\\_>")
+  "%s\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+\\(%s\\)\\_>")
 
 (defun py-xref--search-inner-definition (str)
   ;; Possibly strip "self" or "cls" from local definitions.
   (when (string-match "[^.]+\\.\\([^.]+\\)" str)
     (setq str (match-string 1 str)))
-  (let (limit)
+  (let ((orig (point)) limit)
     (funcall beginning-of-defun-function)
     (while (not (bolp))
       (funcall beginning-of-defun-function))
     (setq limit (line-beginning-position))
     (funcall end-of-defun-function)
-    (re-search-backward (format py-xref-rx-fmt str) limit t 1)))
+    (when (>= (point) orig)
+      (re-search-backward (format py-xref-rx-fmt "^[ \t]+" str)
+                          limit t 1))))
 
 (defun py-xref--local-make (str)
   (save-excursion
     (when (or (py-xref--search-inner-definition str)
               (progn (goto-char (point-max))
                      (re-search-backward
-                      (format py-xref-rx-fmt str) nil t 1)))
+                      (format py-xref-rx-fmt "^" str) nil t 1)))
       (let ((file (buffer-file-name)))
         (if file
             ;; For consistency with what we get out from _get_location, simply
