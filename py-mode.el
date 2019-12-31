@@ -117,15 +117,15 @@
       (forward-line 1))
     (forward-comment (- (point)))))
 
+(defvar py-imenu-rx
+  "^\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+\\([^ (:]+\\)")
+
 (defun py-imenu-prev-index-position ()
-  (when (re-search-backward
-         (concat "^\\(\\(?:async[ \t]+\\)?def\\|class\\)\\_>[ \t]+"
-                 "\\([^ (:]+\\)")
-         nil t 1)
+  (when (re-search-backward py-imenu-rx nil t 1)
     (goto-char (match-beginning 1))))
 
 (defun py-imenu-extract-index-name ()
-  (match-string-no-properties 2))
+  (match-string-no-properties 1))
 
 (defun py-electric-pair-inhibit (c)
   (if (and (eq (char-syntax c) ?\")
