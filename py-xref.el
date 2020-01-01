@@ -71,6 +71,10 @@
      and limit
      until (zerop level) do
        (funcall beginning-of-defun-function)
+     ;; Find the enclosing definition.
+       (while (and (>= (current-indentation) level)
+                   (not (bobp)))
+         (funcall beginning-of-defun-function))
        (setq limit (line-beginning-position))
        (funcall end-of-defun-function)
      if (and (re-search-backward rx limit t 1)
