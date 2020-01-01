@@ -62,7 +62,7 @@
 (defconst py-xref-rx-fmt
   "%s\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+\\(%s\\)\\_>")
 
-(defun py-xref--search-inner-definition (str)
+(defun py-xref--find-inner-definition (str)
   (when (string-match "\\(?:self\\|cls\\)\\.\\([^.]+\\)" str)
     (setq str (match-string 1 str)))
   (cl-loop
@@ -84,14 +84,14 @@
        (goto-char limit)
        (setq level (current-indentation))))
 
-(defun py-xref--search-top-level (str)
+(defun py-xref--find-top-level-definition (str)
   (goto-char (point-max))
   (re-search-backward (format py-xref-rx-fmt "^" str) nil t 1))
 
 (defun py-xref--local-make (str)
   (save-excursion
-    (when (or (py-xref--search-inner-definition str)
-              (py-xref--search-top-level str))
+    (when (or (py-xref--find-inner-definition str)
+              (py-xref--find-top-level-definition str))
       (let ((file (buffer-file-name)))
         (if file
             (py-xref--make str file (line-number-at-pos) 0)
