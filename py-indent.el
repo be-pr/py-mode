@@ -28,9 +28,10 @@
   (save-excursion
     (end-of-line)
     ;; Find the last line in a multiline condition.
-    (unless (zerop (car (syntax-ppss)))
-      (goto-char (scan-lists (car (nth 9 (syntax-ppss))) 1 0))
-      (end-of-line))
+    (let ((state (syntax-ppss)))
+      (unless (zerop (car state))
+        (goto-char (scan-lists (car (nth 9 state)) 1 0))
+        (end-of-line)))
     ;; Skip trailing comment.
     (let ((state (syntax-ppss)))
       (when (nth 4 state)
@@ -43,10 +44,9 @@
       (forward-comment (point-max))
       (end-of-line)
       (skip-chars-backward " \t"))
-    (let ((state (syntax-ppss)))
-      (and (eq (char-before) ?:)
-           ;; Not inside string or comment.
-           (not (nth 8 state))))))
+    (and (eq (char-before) ?:)
+         ;; Not inside string or comment.
+         (not (nth 8 (syntax-ppss))))))
 
 (defun py-indent--dedent (arg)
   (unless (zerop (current-indentation))
@@ -127,9 +127,9 @@
              (if (zerop (car (syntax-ppss)))
                  (py-indent--beginning-of-continuation)
                ;; Key-value pair definition in a dictionary.
-               (unless (eq (char-after (car (nth 9 (syntax-ppss))))
-                           ?\{)
-                 (goto-char (car (nth 9 (syntax-ppss))))))
+               (let ((openparen (car (nth 9 (syntax-ppss)))))
+                 (unless (eq (char-after openparen) ?\{)
+                   (goto-char openparen))))
              (setq level (+ (current-indentation) tab-width))
              t)))
         ;; Multiline parenthetical grouping.
@@ -194,8 +194,9 @@
         ;; Catch-all: line up with preceding line or parenthetical grouping.
         (t (let ((oparen (car (nth 9 (syntax-ppss)))))
              (forward-line -1)
-             (unless (equal oparen (car (nth 9 (syntax-ppss))))
-               (goto-char (car (nth 9 (syntax-ppss)))))
+             (let ((new-oparen (car (nth 9 (syntax-ppss)))))
+               (unless (equal oparen new-oparen)
+                 (goto-char new-oparen)))
              (setq level (current-indentation))))))
     (when (and (numberp level) (/= level (current-indentation)))
       ;; Use a marker to find the right position after indenting --

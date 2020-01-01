@@ -69,7 +69,7 @@
      with level = (current-indentation)
      and rx = (format py-xref-rx-fmt "^[ \t]+" str)
      and limit
-     until (or (zerop level) (bobp)) do
+     until (zerop level) do
        (funcall beginning-of-defun-function)
        (setq limit (line-beginning-position))
        (funcall end-of-defun-function)

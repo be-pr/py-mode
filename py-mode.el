@@ -87,10 +87,9 @@
       (beginning-of-line 1)
       (while (not (or (bobp) (eobp)
                       (and (<= (current-indentation) level)
-                           ;; Skip further conditions on empty lines.
-                           (not (looking-at "[ \t]*$"))
-                           ;; Skip strings and comments.
-                           (not (nth 8 (syntax-ppss)))
+                           ;; Skip further conditions on empty and comment
+                           ;; lines.
+                           (not (looking-at "[ \t]*\\(?:$\\|#\\)"))
                            (py-indent--beginning-of-block-p)
                            (setq level (current-indentation))
                            (setq arg (+ arg n))
@@ -112,8 +111,7 @@
     (forward-line 1)
     (while (not (or (eobp)
                     (and (<= (current-indentation) level)
-                         (not (looking-at "[ \t]*$"))
-                         (not (nth 8 (syntax-ppss))))))
+                         (not (looking-at "[ \t]*\\(?:$\\|#\\)")))))
       (forward-line 1))
     (forward-comment (- (point)))))
 
