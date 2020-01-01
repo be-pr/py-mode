@@ -20,10 +20,11 @@
 
 ;;; Code:
 
-(require 'py-repl)
-(require 'py-complete)
+(require 'cl-lib)
 (require 'xref)
 (require 'pcase)
+(require 'py-repl)
+(require 'py-complete)
 (eval-when-compile (require 'subr-x)) ;string-empty-p, string-trim-right
 
 (declare-function py--object-at-point "py-mode")
@@ -62,29 +63,33 @@
   "%s\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+\\(%s\\)\\_>")
 
 (defun py-xref--search-inner-definition (str)
-  ;; Possibly strip "self" or "cls" from local definitions.
-  (when (string-match "[^.]+\\.\\([^.]+\\)" str)
+  (when (string-match "\\(?:self\\|cls\\)\\.\\([^.]+\\)" str)
     (setq str (match-string 1 str)))
-  (let ((orig (point)) limit)
-    (funcall beginning-of-defun-function)
-    (while (not (bolp))
-      (funcall beginning-of-defun-function))
-    (setq limit (line-beginning-position))
-    (funcall end-of-defun-function)
-    (when (>= (point) orig)
-      (re-search-backward
-       (format py-xref-rx-fmt "^[ \t]+" str) limit t 1))))
+  (cl-loop
+     with level = (current-indentation)
+     and rx = (format py-xref-rx-fmt "^[ \t]+" str)
+     and limit
+     until (or (zerop level) (bobp)) do
+       (funcall beginning-of-defun-function)
+       (setq limit (line-beginning-position))
+       (funcall end-of-defun-function)
+     if (and (re-search-backward rx limit t 1)
+             (<= (current-indentation) level))
+     return t
+     else do
+       (goto-char limit)
+       (setq level (current-indentation))))
+
+(defun py-xref--search-top-level (str)
+  (goto-char (point-max))
+  (re-search-backward (format py-xref-rx-fmt "^" str) nil t 1))
 
 (defun py-xref--local-make (str)
   (save-excursion
     (when (or (py-xref--search-inner-definition str)
-              (progn (goto-char (point-max))
-                     (re-search-backward
-                      (format py-xref-rx-fmt "^" str) nil t 1)))
+              (py-xref--search-top-level str))
       (let ((file (buffer-file-name)))
         (if file
-            ;; For consistency with what we get out from _get_location, simply
-            ;; jump to column 0.
             (py-xref--make str file (line-number-at-pos) 0)
           (py-xref--make str (current-buffer) (point-at-bol)))))))
 
