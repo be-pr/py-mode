@@ -26,12 +26,14 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'comint)
 (require 'py-indent)
 (eval-when-compile (require 'subr-x)) ;string-empty-p
 
 (declare-function electric-pair-default-inhibit "elec-pair" (char))
 (declare-function py-xref-backend "py-xref")
+(declare-function py-xref--nenv "py-xref")
 (declare-function py-eldoc-documentation-function "py-eldoc")
 (declare-function py-repl-get-process "py-repl")
 (declare-function py-repl-send "py-repl" (proc str))
@@ -46,6 +48,7 @@
 (defvar electric-pair-inhibit-predicate)
 (defvar electric-pair-skip-self)
 (defvar py-repl-output)
+(defvar imenu-use-markers)
 
 (defvar py-mode-syntax-table
   (let ((table (make-syntax-table)))
@@ -85,16 +88,16 @@
         (end-of-line 1)
         (forward-comment (buffer-size)))
       (beginning-of-line 1)
-      (while (not (or (bobp) (eobp)
-                      (and (<= (current-indentation) level)
-                           ;; Skip further conditions on empty and comment
-                           ;; lines.
-                           (not (looking-at "[ \t]*\\(?:$\\|#\\)"))
-                           (py-indent--beginning-of-block-p)
-                           (setq level (current-indentation))
-                           (setq arg (+ arg n))
-                           (zerop arg))))
-        (forward-line n))))
+      (cl-loop until
+           (or (bobp) (eobp)
+               (and (<= (current-indentation) level)
+                    ;; Skip further conditions on empty and comment lines.
+                    (not (looking-at "[ \t]*\\(?:$\\|#\\)"))
+                    (py-indent--beginning-of-block-p)
+                    (setq level (current-indentation))
+                    (setq arg (+ arg n))
+                    (zerop arg)))
+         do (forward-line n))))
   ;; Backslash continuations.
   (py-indent--beginning-of-continuation)
   ;; Multiline block start.
@@ -109,21 +112,26 @@
 (defun py-end-of-defun ()
   (let ((level (current-indentation)))
     (forward-line 1)
-    (while (not (or (eobp)
-                    (and (<= (current-indentation) level)
-                         (not (looking-at "[ \t]*\\(?:$\\|#\\)")))))
-      (forward-line 1))
+    (cl-loop until
+         (or (eobp)
+             (and (<= (current-indentation) level)
+                  (not (or (looking-at "[ \t]*\\(?:$\\|#\\)")
+                           (nth 8 (syntax-ppss))))))
+       do (forward-line 1))
     (forward-comment (- (point)))))
 
-(defvar py-imenu-rx
-  "^\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+\\([^ (:]+\\)")
+(defconst py--def-rx
+  "^[ \t]*\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+")
 
-(defun py-imenu-prev-index-position ()
-  (when (re-search-backward py-imenu-rx nil t 1)
-    (goto-char (match-beginning 1))))
-
-(defun py-imenu-extract-index-name ()
-  (match-string-no-properties 1))
+(defun py-imenu-create-index ()
+  (goto-char (point-max))
+  (cl-loop
+     with rx = (concat py--def-rx "\\([^ (:]+\\)")
+     and markerp = imenu-use-markers
+     while (re-search-backward rx nil t 1)
+     when (zerop (py-xref--nenv)) collect
+       (cons (match-string 1)
+             (if markerp (point-marker) (point)))))
 
 (defun py-electric-pair-inhibit (c)
   (if (and (eq (char-syntax c) ?\")
@@ -208,10 +216,7 @@
   (setq-local parse-sexp-ignore-comments t)
   (setq-local beginning-of-defun-function #'py-beginning-of-defun)
   (setq-local end-of-defun-function #'py-end-of-defun)
-  (setq imenu-prev-index-position-function
-        #'py-imenu-prev-index-position)
-  (setq imenu-extract-index-name-function
-        #'py-imenu-extract-index-name)
+  (setq-local imenu-create-index-function #'py-imenu-create-index)
   (add-hook 'xref-backend-functions #'py-xref-backend nil t)
   (add-hook 'completion-at-point-functions
             #'py-completion-function nil t)
@@ -229,10 +234,9 @@
   (save-excursion
     (let ((lim (line-beginning-position))
           forward-sexp-function beg)
-      (or end
-          (setq end (save-excursion
-                      (skip-syntax-forward "w_")
-                      (point))))
+      (or end (setq end (save-excursion
+                          (skip-syntax-forward "w_")
+                          (point))))
       (skip-syntax-backward "w_")
       ;; Since we pass identifiers found to `eval', ignore any function calls.
       (unless (eq (char-before) ?\))
