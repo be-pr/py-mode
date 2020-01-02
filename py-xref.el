@@ -23,6 +23,7 @@
 (require 'cl-lib)
 (require 'xref)
 (require 'pcase)
+(require 'py-mode)
 (require 'py-repl)
 (require 'py-complete)
 (eval-when-compile (require 'subr-x)) ;string-empty-p, string-trim-right
@@ -59,39 +60,53 @@
                          (error out)))))))
         (py-xref--local-make str)))))
 
-(defconst py-xref-rx-fmt
-  "%s\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+\\(%s\\)\\_>")
-
 (defun py-xref--find-inner-definition (str)
   (when (string-match "\\(?:self\\|cls\\)\\.\\([^.]+\\)" str)
     (setq str (match-string 1 str)))
   (cl-loop
      with level = (current-indentation)
-     and rx = (format py-xref-rx-fmt "^[ \t]+" str)
+     and nenv = (py-xref--nenv)
+     and rx = (concat py--def-rx str "\\_>")
      and limit
      until (zerop level) do
        (funcall beginning-of-defun-function)
-     ;; Find the enclosing definition.
-       (while (and (>= (current-indentation) level)
-                   (not (bobp)))
+     ;; Find enclosing block statement.
+       (while (= (current-indentation) level)
          (funcall beginning-of-defun-function))
        (setq limit (line-beginning-position))
        (funcall end-of-defun-function)
-     if (and (re-search-backward rx limit t 1)
-             (<= (current-indentation) level))
+     if (cl-loop
+           while (re-search-backward rx limit t 1)
+           if (<= (py-xref--nenv) nenv)
+           return t)
      return t
      else do
        (goto-char limit)
        (setq level (current-indentation))))
 
+(defun py-xref--nenv ()
+  (save-excursion
+    (let ((inhibit-changing-match-data t)
+          (n 0))
+      (while (not (zerop (current-indentation)))
+        (funcall beginning-of-defun-function)
+        (if (looking-at py--def-rx) (cl-incf n)))
+      n)))
+
 (defun py-xref--find-top-level-definition (str)
-  (goto-char (point-max))
-  (re-search-backward (format py-xref-rx-fmt "^" str) nil t 1))
+  (save-excursion
+    (goto-char (point-min))
+    (cl-loop
+       with rx = (concat py--def-rx str "\\_>")
+       while (re-search-forward rx nil t 1)
+       when (zerop (py-xref--nenv))
+       return t)))
 
 (defun py-xref--local-make (str)
   (save-excursion
     (when (or (py-xref--find-inner-definition str)
               (py-xref--find-top-level-definition str))
+      (goto-char (match-beginning 0))
       (let ((file (buffer-file-name)))
         (if file
             (py-xref--make str file (line-number-at-pos) 0)
