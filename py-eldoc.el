@@ -26,10 +26,10 @@
 
 (defun py-eldoc--openparen ()
   (if (eq major-mode 'py-repl-mode)
-      (let ((pos (cadr (syntax-ppss))))
+      (let ((pos (nth 1 (syntax-ppss))))
         (unless (and pos (<= pos (cdr comint-last-prompt)))
           pos))
-    (cadr (syntax-ppss))))
+    (nth 1 (syntax-ppss))))
 
 (defun py-eldoc--function-name ()
   (when-let* ((openparen (py-eldoc--openparen)))

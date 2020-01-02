@@ -15,6 +15,6 @@ test : compile $(TESTF)
 	$(EMACS) -l $(filter-out $<, $^) -f ert-run-tests-batch-and-exit
 
 clean :
-	rm -rf $(ELCS)
+	rm $(ELCS)
 
 .PHONY : compile test clean

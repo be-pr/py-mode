@@ -39,12 +39,12 @@
     ;; Skip any whitespace character following the backslash.
     (skip-chars-backward " \t")
     ;; Jump over backslash continuations.
-    (while (and (not (eobp)) (eq (char-before) ?\\))
+    (while (= (preceding-char) ?\\)
       ;; Skip comment lines.
       (forward-comment (point-max))
       (end-of-line)
       (skip-chars-backward " \t"))
-    (and (eq (char-before) ?:)
+    (and (= (preceding-char) ?:)
          ;; Not inside string or comment.
          (not (nth 8 (syntax-ppss))))))
 
@@ -96,7 +96,7 @@
     (save-excursion
       (forward-comment (- (point)))
       (skip-chars-backward " \t")
-      (while (eq (char-before) ?\\)
+      (while (= (preceding-char) ?\\)
         (forward-line 0)
         (setq pos (point))
         (forward-comment (- (point)))
@@ -104,7 +104,8 @@
     (when pos (goto-char pos))))
 
 (defsubst py-indent--eolp ()
-  (or (eolp) (eq (char-syntax (char-after)) ?<)))
+  ;; eol or comment start syntax.
+  (or (eolp) (eq (car (syntax-after (point))) 11)))
 
 (defun py-indent-function ()
   (let ((col (current-column))
@@ -122,7 +123,7 @@
         ;; Increase indentation level after colons.
         ((save-excursion
            (forward-comment (- (point)))
-           (when (eq (char-before) ?:)
+           (when (= (preceding-char) ?:)
              (forward-line 0)
              (if (zerop (car (syntax-ppss)))
                  (py-indent--beginning-of-continuation)
@@ -140,8 +141,7 @@
          (let ((openparen (car (last (nth 9 (syntax-ppss)))))
                (closeparen-hanging-p
                 (save-excursion
-                  (and (not (eobp))
-                       (eq (char-syntax (char-after)) ?\))
+                  (and (eq (car (syntax-after (point))) 5)
                        (skip-syntax-forward ")")
                        (skip-chars-forward " \t")
                        (py-indent--eolp)))))
@@ -150,11 +150,11 @@
              ;; Inside dictionaries, align values with their keys.
              ((and (not closeparen-hanging-p)
                    (eq (char-after openparen) ?\{)
-                   (not (eq (char-before) ?,))
+                   (not (= (preceding-char) ?,))
                    ;; Catch the `scan-error' on `forward-sexp' at openparen.
                    (condition-case nil
                        (progn
-                         (while (not (memq (char-before) '(?, ?:)))
+                         (while (not (memq (preceding-char) '(?, ?:)))
                            (forward-sexp -1)
                            (forward-comment (- (point))))
                          t)

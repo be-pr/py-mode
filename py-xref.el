@@ -23,10 +23,11 @@
 (require 'cl-lib)
 (require 'xref)
 (require 'pcase)
-(require 'py-mode)
 (require 'py-repl)
 (require 'py-complete)
 (eval-when-compile (require 'subr-x)) ;string-empty-p, string-trim-right
+
+(defvar py--def-rx)
 
 (declare-function py--object-at-point "py-mode")
 
@@ -48,16 +49,16 @@
                 (pcase (read out)
                   (`(quote ,_)
                     (or (py-xref--local-make str)
-                        (error out)))
+                        (user-error out)))
                   (`(,file . ,line)
                     (if (equal file "<stdin>")
                         (or (py-xref--local-make str)
-                            (error "%s defined at <stdin>" str))
+                            (user-error "%s defined at <stdin>" str))
                       (py-xref--make str file line 0)))
-                  ('None (error "Failed to locate %s" str))
+                  ('None (user-error "Failed to locate %s" str))
                   ;; If all fails, search current buffer.
                   (_ (or (py-xref--local-make str)
-                         (error out)))))))
+                         (user-error out)))))))
         (py-xref--local-make str)))))
 
 (defun py-xref--find-inner-definition (str)
@@ -77,7 +78,7 @@
        (funcall end-of-defun-function)
      if (cl-loop
            while (re-search-backward rx limit t 1)
-           if (<= (py-xref--nenv) nenv)
+           unless (> (py-xref--nenv) nenv)
            return t)
      return t
      else do

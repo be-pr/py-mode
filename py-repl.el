@@ -180,7 +180,7 @@
              (forward-sexp -1)
              (buffer-substring-no-properties (point) end))
          (scan-error nil)))
-      ((memq (char-after) '(?: ?, ?`)) nil)
+      ((memq (following-char) '(?: ?, ?`)) nil)
       (t (buffer-substring-no-properties (point) end)))))
 
 ;; Find a single expression before point.

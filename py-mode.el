@@ -138,7 +138,7 @@
            (save-excursion
              (= (skip-chars-backward (string c)) -3)))
       (save-excursion
-        (unless (eq (char-after) c)
+        (when (/= (following-char) c)
           (insert (make-string 3 c)))
         t)
     (funcall (default-value 'electric-pair-inhibit-predicate) c)))
@@ -232,21 +232,21 @@
 
 (defun py--object-at-point (&optional end)
   (save-excursion
-    (let ((lim (line-beginning-position))
+    (let ((limit (line-beginning-position))
           forward-sexp-function beg)
       (or end (setq end (save-excursion
                           (skip-syntax-forward "w_")
                           (point))))
       (skip-syntax-backward "w_")
       ;; Since we pass identifiers found to `eval', ignore any function calls.
-      (unless (eq (char-before) ?\))
+      (when (/= (preceding-char) ?\))
         (setq beg (point))
         ;; Jump over attributerefs.
-        (while (eq (char-before) ?.)
+        (while (= (preceding-char) ?.)
           (forward-sexp -1)
           ;; Multiline string inputs will cause a SyntaxError in `eval'.
-          (unless (or (< (point) lim)
-                      (eq (char-after) ?\())
+          (unless (or (< (point) limit)
+                      (= (following-char) ?\())
             (setq beg (point))))
         (unless (= beg end)
           (buffer-substring-no-properties beg end))))))

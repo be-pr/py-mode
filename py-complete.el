@@ -62,7 +62,7 @@
     (skip-syntax-forward "w_")
     (let ((end (point)))
       (skip-syntax-backward "w_")
-      (when (or (/= end (point)) (equal (char-before) ?.))
+      (when (or (/= end (point)) (= (preceding-char) ?.))
         (list (point) end
               #'py-complete-table
               :exclusive 'no)))))
