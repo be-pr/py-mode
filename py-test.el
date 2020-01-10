@@ -34,7 +34,7 @@
 Uppercase X in BUFSTR marks current point."
   (declare (indent 1) (debug t))
   `(let (case-fold-search endpos)
-    (unless (buffer-file-name)
+    (unless buffer-file-name
       (setf (buffer-string) ,bufstr)
       (goto-char (point-min))
       (when (re-search-forward "X" nil t 1)

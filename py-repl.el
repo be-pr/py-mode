@@ -106,7 +106,7 @@
   (interactive)
   (when (buffer-modified-p)
     (basic-save-buffer))
-  (let* ((file (buffer-file-name))
+  (let* ((file buffer-file-name)
          (buf (py-repl-process-buffer))
          (proc (get-buffer-process buf)))
     (unless file (user-error "Current buffer is not visiting a file"))

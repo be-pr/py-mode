@@ -35,13 +35,12 @@
       (invalid-read-syntax nil))))
 
 (defun py-complete--table-create (&optional fullrefs)
-  (let (otick opoint table)
+  (let (table last-name)
     (lambda (name pred flag)
       (pcase flag
         ('t (all-completions name table pred))
         ('nil
-         (or (and (eq otick (buffer-modified-tick))
-                  (eq opoint (point)))
+         (or (and last-name (string-prefix-p last-name name))
              (input-pending-p)
              (let ((proc (get-buffer-process (py-repl-process-buffer))))
                (when proc
@@ -50,8 +49,7 @@
                    (setq table (py-complete--get-completions
                                 proc id callfunc
                                 (if fullrefs "True" "False")))
-                   (setq opoint (point))
-                   (setq otick (buffer-modified-tick))))))
+                   (setq last-name name)))))
          (try-completion name table pred))
         ('metadata '(metadata (category . pymode)))))))
 

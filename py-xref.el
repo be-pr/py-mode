@@ -108,10 +108,9 @@
     (when (or (py-xref--find-inner-definition str)
               (py-xref--find-top-level-definition str))
       (goto-char (match-beginning 0))
-      (let ((file (buffer-file-name)))
-        (if file
-            (py-xref--make str file (line-number-at-pos) 0)
-          (py-xref--make str (current-buffer) (point-at-bol)))))))
+      (if buffer-file-name
+          (py-xref--make str buffer-file-name (line-number-at-pos) 0)
+        (py-xref--make str (current-buffer) (point-at-bol))))))
 
 (defun py-xref--make (str loc &rest rest)
   (list (xref-make
