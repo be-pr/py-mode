@@ -49,7 +49,8 @@
                    (setq table (py-complete--get-completions
                                 proc id callfunc
                                 (if fullrefs "True" "False")))
-                   (setq last-name name)))))
+                   (unless (equal name "")
+                     (setq last-name name))))))
          (try-completion name table pred))
         ('metadata '(metadata (category . pymode)))))))
 
