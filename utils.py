@@ -47,8 +47,8 @@ class _Completer:
 
     def get_completions(self, cstring, callfunc):
         primaries = cstring.split('.')
-        identifier = primaries[-1]
-        primary = '.'.join(primaries[0:-1])
+        identifier = primaries.pop()
+        primary = '.'.join(primaries)
         acc = []
         if primary:
             try:

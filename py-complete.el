@@ -44,8 +44,8 @@
                     (when (process-live-p process)
                       (setq table (py-complete--get-completions
                                    process name func))
-                      (setq oldname name)))
-                  (try-completion name table pred)))
+                      (setq oldname name))))
+              (try-completion name table pred))
         ('metadata '(metadata (category . pymode)))))))
 
 (defun py-completion-function ()
