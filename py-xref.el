@@ -119,11 +119,9 @@
                       #'xref-make-file-location)
                     loc rest))))
 
-(defalias 'py-xref-table (py-complete--table-create t))
-
 (cl-defmethod xref-backend-identifier-completion-table
     ((_backend (eql python)))
-  #'py-xref-table)
+  (py-complete--table-create))
 
 
 (provide 'py-xref)

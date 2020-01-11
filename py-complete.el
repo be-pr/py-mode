@@ -23,48 +23,44 @@
 (require 'py-repl)
 (require 'py-eldoc)
 
-(declare-function py--object-at-point "py-mode")
-
-(defun py-complete--get-completions (proc name callfunc fullrefs)
+(defun py-complete--get-completions (proc &optional name callfunc)
   (py-repl-send proc
-    (format "_lispify(_completer.get_completions(%S, %S, %s))"
-            name callfunc fullrefs))
+    (concat "_lispify(_completer.get_completions('"
+            name "', '" callfunc "'))"))
   (when py-repl-output
     (condition-case nil
         (read py-repl-output)
       (invalid-read-syntax nil))))
 
-(defun py-complete--table-create (&optional fullrefs)
-  (let (table last-name)
+(defun py-complete--table-create (&optional func)
+  (let (table oldname)
     (lambda (name pred flag)
       (pcase flag
         ('t (all-completions name table pred))
-        ('nil
-         (or (and last-name (string-prefix-p last-name name))
-             (input-pending-p)
-             (let ((proc (get-buffer-process (py-repl-process-buffer))))
-               (when proc
-                 (let ((callfunc (or (py-eldoc--function-name) ""))
-                       (id (or (py--object-at-point) "")))
-                   (setq table (py-complete--get-completions
-                                proc id callfunc
-                                (if fullrefs "True" "False")))
-                   (unless (equal name "")
-                     (setq last-name name))))))
-         (try-completion name table pred))
+        ('nil (or (equal name oldname)
+                  (input-pending-p)
+                  (let* ((buf (py-repl-process-buffer))
+                         (process (get-buffer-process buf)))
+                    (when (process-live-p process)
+                      (setq table (py-complete--get-completions
+                                   process name func))
+                      (setq oldname name)))
+                  (try-completion name table pred)))
         ('metadata '(metadata (category . pymode)))))))
-
-(defalias 'py-complete-table (py-complete--table-create))
 
 (defun py-completion-function ()
   (save-excursion
     (skip-syntax-forward "w_")
     (let ((end (point)))
       (skip-syntax-backward "w_")
-      (when (or (/= end (point)) (= (preceding-char) ?.))
-        (list (point) end
-              #'py-complete-table
-              :exclusive 'no)))))
+      (while (= (preceding-char) ?.)
+        (skip-chars-backward ".")
+        (skip-syntax-backward "w_"))
+      (when (/= end (point))
+        (let ((func (py-eldoc--function-name)))
+          (list (point) end
+                (py-complete--table-create func)
+                :exclusive 'no))))))
 
 
 (provide 'py-complete)

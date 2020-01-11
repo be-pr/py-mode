@@ -45,12 +45,12 @@ class _Completer:
     def __init__(self):
         self.defaults = dir(__builtins__) + keyword.kwlist
 
-    def get_completions(self, cstring, callfunc, fullrefs):
-        # Remove the identifier from an attributeref.
-        primaries = cstring.split('.')[0:-1]
+    def get_completions(self, cstring, callfunc):
+        primaries = cstring.split('.')
+        identifier = primaries[-1]
+        primary = '.'.join(primaries[0:-1])
         acc = []
-        if primaries:
-            primary = '.'.join(primaries)
+        if primary:
             try:
                 obj = eval(primary)
                 if hasattr(obj, '__class__'):
@@ -58,9 +58,7 @@ class _Completer:
                     acc = list(set(self._get_attrs(obj)))
                 else:
                     acc = dir(obj)
-                if fullrefs:
-                    acc = [primary + "." + id for id in acc]
-                return acc
+                return [primary + "." + id for id in acc]
             except (NameError, SyntaxError):
                 pass
         else:
