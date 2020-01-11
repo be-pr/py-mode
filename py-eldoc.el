@@ -20,7 +20,6 @@
 ;;; Code:
 
 (require 'py-repl)
-(eval-when-compile (require 'subr-x)) ;when-let*, string-blank-p
 
 (declare-function py--object-at-point "py-mode")
 
@@ -32,8 +31,8 @@
     (nth 1 (syntax-ppss))))
 
 (defun py-eldoc--function-name ()
-  (when-let* ((openparen (py-eldoc--openparen)))
-    (when (eq (char-after openparen) ?\()
+  (let ((openparen (py-eldoc--openparen)))
+    (when (and openparen (eq (char-after openparen) ?\())
       (save-excursion
         (goto-char openparen)
         (skip-chars-backward " \t")
@@ -42,19 +41,19 @@
 (defun py-eldoc--create ()
   (let (last-func last-sig)
     (lambda ()
-      (when-let*
-          ((func (py-eldoc--function-name))
-           (buf (py-repl-process-buffer))
-           (proc (get-buffer-process buf)))
+      (let ((func (py-eldoc--function-name)))
         (if (equal func last-func)
             (eldoc-message last-sig)
-          (py-repl-send proc
-            (format "_get_signature(%S, globals())" func))
-          (when-let* ((sig py-repl-output))
-            (unless (string-blank-p sig)
-              (setq last-func func)
-              (when (string-match "\\(.*\\)\n" sig)
-                (setq last-sig (match-string 1 sig))
+          (let* ((buf (py-repl-process-buffer))
+                 (proc (get-buffer-process buf)))
+            (when (process-live-p proc)
+              (py-repl-send proc
+                (format "_get_signature(%S, globals())" func))
+              (when (and py-repl-output
+                         (string-match "\\(.*\\)\n" py-repl-output)
+                         (/= (match-beginning 1) (match-end 1)))
+                (setq last-sig (match-string 1 py-repl-output))
+                (setq last-func func)
                 (eldoc-message last-sig)))))))))
 
 (defalias 'py-eldoc-documentation-function (py-eldoc--create))

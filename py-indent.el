@@ -105,7 +105,7 @@
 
 (defsubst py-indent--eolp ()
   ;; eol or comment start syntax.
-  (or (eolp) (eq (car (syntax-after (point))) 11)))
+  (or (eolp) (eq (char-syntax (following-char)) ?<)))
 
 (defun py-indent-function ()
   (let ((col (current-column))
@@ -141,7 +141,7 @@
          (let ((openparen (car (last (nth 9 (syntax-ppss)))))
                (closeparen-hanging-p
                 (save-excursion
-                  (and (eq (car (syntax-after (point))) 5)
+                  (and (eq (char-syntax (following-char)) ?\))
                        (skip-syntax-forward ")")
                        (skip-chars-forward " \t")
                        (py-indent--eolp)))))
