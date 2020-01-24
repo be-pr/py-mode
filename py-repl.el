@@ -197,19 +197,14 @@
 (defun py-eval-last-expression (&optional arg)
   (interactive "P")
   (let* ((proc (py-repl-get-process))
-         (expr (py-repl--last-expression))
-         (end (point)))
+         (expr (py-repl--last-expression)))
     (when expr
       (or (py-repl-send proc expr)
           (user-error "Process under Pdb's control"))
       (when (and py-repl-output
                  (not (string-blank-p py-repl-output)))
         (let ((str (string-trim-right py-repl-output "\n")))
-          (if arg
-              (save-excursion
-                (insert "\n" str)
-                (comment-region end (point)))
-            (message "%s" str)))))))
+          (funcall (if arg 'insert 'message) str))))))
 
 (defun py-switch-to-repl (&optional arg)
   (interactive "P")
