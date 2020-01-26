@@ -26,7 +26,6 @@
 
 ;;; Code:
 
-(require 'cl-lib)
 (require 'comint)
 (require 'py-indent)
 (eval-when-compile (require 'subr-x)) ;string-empty-p
@@ -88,16 +87,14 @@
         (end-of-line 1)
         (forward-comment (buffer-size)))
       (beginning-of-line 1)
-      (cl-loop until
-           (or (bobp) (eobp)
-               (and (<= (current-indentation) level)
-                    ;; Skip further conditions on empty and comment lines.
-                    (not (looking-at "[ \t]*\\(?:$\\|#\\)"))
-                    (py-indent--beginning-of-block-p)
-                    (setq level (current-indentation))
-                    (setq arg (+ arg n))
-                    (zerop arg)))
-         do (forward-line n))))
+      (while (and (or (> (current-indentation) level)
+                      (looking-at "[ \t]*\\(?:$\\|#\\)")
+                      (and (py-indent--beginning-of-block-p)
+                           (progn
+                             (setq level (current-indentation))
+                             (setq arg (+ arg n))
+                             (/= 0 arg))))
+                  (zerop (forward-line n))))))
   ;; Backslash continuations.
   (py-indent--beginning-of-continuation)
   ;; Multiline block start.
@@ -111,13 +108,10 @@
 
 (defun py-end-of-defun ()
   (let ((level (current-indentation)))
-    (forward-line 1)
-    (cl-loop until
-         (or (eobp)
-             (and (<= (current-indentation) level)
-                  (not (or (looking-at "[ \t]*\\(?:$\\|#\\)")
-                           (nth 8 (syntax-ppss))))))
-       do (forward-line 1))
+    (while (and (zerop (forward-line 1))
+                (or (> (current-indentation) level)
+                    (looking-at "[ \t]*\\(?:$\\|#\\)")
+                    (nth 8 (syntax-ppss)))))
     (forward-comment (- (point)))))
 
 (defconst py--def-rx
@@ -125,13 +119,14 @@
 
 (defun py-imenu-create-index ()
   (goto-char (point-max))
-  (cl-loop
-     with rx = (concat py--def-rx "\\([^ (:]+\\)")
-     and markerp = imenu-use-markers
-     while (re-search-backward rx nil t 1)
-     when (zerop (py-xref--nenv)) collect
-       (cons (match-string 1)
-             (if markerp (point-marker) (point)))))
+  (let ((rx (concat py--def-rx "\\([^ (:]+\\)"))
+        (pm imenu-use-markers) acc)
+    (while (re-search-backward rx nil t 1)
+      (when (zerop (py-xref--nenv))
+        (push (cons (match-string 1)
+                    (if pm (point-marker) (point)))
+              acc)))
+    (nreverse acc)))
 
 (defun py-electric-pair-inhibit (c)
   (if (and (eq (char-syntax c) ?\")
