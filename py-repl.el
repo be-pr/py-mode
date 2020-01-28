@@ -65,7 +65,7 @@
       (setq py-repl--receiving-p nil)
       (with-current-buffer buffer
         (goto-char (point-max))
-        (let ((rx "^\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)*"))
+        (let ((rx "^\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)+"))
           ;; Delete parts of the result that can only be prompts.
           (re-search-backward ">>> " nil t 1)
           (skip-chars-backward " \t\n")
@@ -74,8 +74,8 @@
           (when (re-search-forward rx nil t 1)
             (delete-region (point) (point-min))))))))
 
-;; The input can either be a list of strings or a list of two integers/markers
-;; drawing the boundaries of a region in the current buffer.
+;; The `input' can either be a list of strings or a list of two
+;; integers/markers drawing the boundaries of a region in the current buffer.
 (defun py-repl-send (proc read &rest input)
   (declare (indent 2))
   (let ((oldfilter (process-filter proc))
