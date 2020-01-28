@@ -24,13 +24,9 @@
 (require 'py-eldoc)
 
 (defun py-complete--get-completions (proc &optional name callfunc)
-  (py-repl-send proc
-    (concat "_lispify(_completer.get_completions('"
-            name "', '" callfunc "'))"))
-  (when py-repl-output
-    (condition-case nil
-        (read py-repl-output)
-      (invalid-read-syntax nil))))
+  (py-repl-send proc t
+    "_lispify(_completer.get_completions('" name "','"
+    callfunc "'))"))
 
 (defun py-complete--table-create (&optional func)
   (let (table oldname)

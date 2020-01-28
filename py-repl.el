@@ -50,51 +50,69 @@
   (or (get-buffer-process (py-repl-process-buffer))
       (user-error "No running Python process")))
 
-;; Check whether the process is under Pdb's control.
-(defun py-repl--pdb-p ()
-  (when comint-last-prompt
-    (save-excursion
-      (goto-char (car comint-last-prompt))
-      (looking-at "(Pdb) "))))
+(defun py-repl--barf-on-pdb (&optional proc-buffer)
+  (with-current-buffer (or proc-buffer (current-buffer))
+    (and comint-last-prompt
+         (save-excursion
+           (goto-char (car comint-last-prompt))
+           (looking-at "(Pdb) "))
+         (user-error "Process under Pdb's control"))))
 
-(defun py-repl--filter (str)
-  (let ((buf (get-buffer " *py-repl tempbuf*")))
-    (with-current-buffer buf (insert str))
-    (when (string-match-p "> \\'" str)
-      (remove-hook 'comint-preoutput-filter-functions
-                   #'py-repl--filter t)
-      (with-current-buffer buf
-        (skip-chars-backward " >.")
-        ;; Find the actual last prompt.
-        (when (re-search-forward ">\\{3\\} " nil t 1)
-          (goto-char (match-beginning 0)))
-        (let ((end (point)))
+(defvar py-repl--receiving-p nil)
+
+(defun py-repl--filter-create (buffer)
+  (lambda (_proc chunk)
+    (princ chunk buffer)
+    (when (string-match-p "> \\'" chunk)
+      (setq py-repl--receiving-p nil)
+      (with-current-buffer buffer
+        (goto-char (point-max))
+        (let ((rx "^\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)*"))
+          ;; Delete parts of the result that can only be prompts.
+          (re-search-backward ">>> " nil t 1)
+          (skip-chars-backward " \t\n")
+          (delete-region (point) (point-max))
           (goto-char (point-min))
-          (re-search-forward
-           "^\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)*" end t 1)
-          (setq py-repl-output (buffer-substring (point) end)))
-        (kill-buffer)))
-    ""))
+          (when (re-search-forward rx nil t 1)
+            (delete-region (point) (point-min))))))))
 
-(defun py-repl--send (proc str)
-  (let ((buf (get-buffer-create " *py-repl tempbuf*")))
-    (with-current-buffer (process-buffer proc)
-      (add-hook 'comint-preoutput-filter-functions
-                #'py-repl--filter nil t))
-    (process-send-string proc str)
-    (process-send-string proc "\n")
-    (let (inhibit-quit)
-      ;; Intentionally block further execution until the subprocess returns.
-      (while (buffer-live-p buf)
-        (accept-process-output proc)))))
-
-(defun py-repl-send (proc str)
-  (declare (indent 1))
-  (setq py-repl-output nil)
-  (unless (with-current-buffer (process-buffer proc)
-            (py-repl--pdb-p))
-    (py-repl--send proc str)
-    t))
+;; The input can either be a list of strings or a list of two integers/markers
+;; drawing the boundaries of a region in the current buffer.
+(defun py-repl-send (proc read &rest input)
+  (declare (indent 2))
+  (let ((oldfilter (process-filter proc))
+        (oldbuf (current-buffer))
+        (in (generate-new-buffer " *py in*"))
+        (out (generate-new-buffer " *py out*")))
+    (unwind-protect
+         (let ((standard-output in))
+           (with-current-buffer (process-buffer proc)
+             (py-repl--barf-on-pdb)
+             (set-process-filter proc (py-repl--filter-create out)))
+           (if (integer-or-marker-p (car input))
+               (with-current-buffer in
+                 (insert-buffer-substring oldbuf (car input)
+                                          (cadr input)))
+             (dolist (str input) (princ str)))
+           (setq standard-output out)
+           (setq py-repl--receiving-p t)
+           (with-current-buffer in
+             (process-send-region proc (point-min) (point-max))
+             (process-send-string proc "\n"))
+           ;; Intentionally block further execution until the subprocess
+           ;; returns.
+           (while py-repl--receiving-p
+             (accept-process-output proc))
+           (unless (zerop (buffer-size out))
+             (with-current-buffer out
+               (if (not read) (buffer-string)
+                 (when (= (following-char) ?\()
+                   (condition-case nil (read out)
+                     (invalid-read-syntax nil)))))))
+      (set-process-filter proc oldfilter)
+      (and (buffer-name in) (kill-buffer in))
+      (and (buffer-name out) (kill-buffer out))
+      (setq py-repl--receiving-p nil))))
 
 ;; Sending multiline statements to the subprocess and also applying the right
 ;; __code__.co_firstlineno attributes seems to be too complicated.
@@ -111,9 +129,7 @@
          (proc (get-buffer-process buf)))
     (unless file (user-error "Current buffer is not visiting a file"))
     (unless proc (user-error "No running Python process"))
-    (with-current-buffer buf
-      (when (py-repl--pdb-p)
-        (user-error "Process under Pdb's control")))
+    (py-repl--barf-on-pdb buf)
     (process-send-string
      proc (format "with open(r'''%s''') as f:
     exec(compile(f.read(), r'''%s''', 'exec'))\n\n" file file))))
@@ -123,9 +139,7 @@
   (let* ((buf (py-repl-process-buffer))
          (proc (get-buffer-process buf)))
     (unless proc (user-error "No running Python process"))
-    (with-current-buffer buf
-      (when (py-repl--pdb-p)
-        (user-error "Process under Pdb's control")))
+    (py-repl--barf-on-pdb buf)
     (save-excursion
       (comment-forward (buffer-size))
       (end-of-line)
@@ -146,9 +160,7 @@
          (proc (get-buffer-process buf))
          (str (buffer-substring-no-properties beg end)))
     (unless proc (user-error "No running Python process"))
-    (with-current-buffer buf
-      (when (py-repl--pdb-p)
-        (user-error "Process under Pdb's control")))
+    (py-repl--barf-on-pdb buf)
     (process-send-string
      proc
      ;; Anything that is a statement, i.e., not a single expression, has to be
@@ -168,43 +180,32 @@
     (unless (eolp)
       (py-eval-region (point) (line-beginning-position 2)))))
 
-(defun py-repl--tokenize ()
-  (let ((end (point))
-        forward-sexp-function)
+(defun py-repl--backward-token ()
+  (let ((orig (point)) forward-sexp-function)
     (skip-chars-backward " \t")
-    (cond
-      ((bolp) nil)
-      ((zerop (skip-syntax-backward "."))
-       (condition-case nil
-           (progn
-             (forward-sexp -1)
-             (buffer-substring-no-properties (point) end))
-         (scan-error nil)))
-      ((memq (following-char) '(?: ?, ?`)) nil)
-      (t (buffer-substring-no-properties (point) end)))))
+    (condition-case nil
+        (cond ((bolp) nil)
+              ((zerop (skip-syntax-backward "."))
+               (forward-sexp -1) t)
+              ((memq (following-char) '(?: ?, ?`)) nil)
+              ((/= orig (point)) t))
+      (scan-error nil))))
 
-;; Find a single expression before point.
-(defun py-repl--last-expression ()
-  (let (token acc)
+(defun py-repl--last-expression-bounds ()
+  (let ((end (point)))
     (save-excursion
-      (setq token (py-repl--tokenize))
-      (while token
-        (when (stringp token)
-          (setq acc (concat token acc)))
-        (setq token (py-repl--tokenize))))
-    acc))
+      (while (py-repl--backward-token))
+      (unless (= (point) end)
+        (list (point) end)))))
 
 (defun py-eval-last-expression (&optional arg)
   (interactive "P")
-  (let* ((proc (py-repl-get-process))
-         (expr (py-repl--last-expression)))
-    (when expr
-      (or (py-repl-send proc expr)
-          (user-error "Process under Pdb's control"))
-      (when (and py-repl-output
-                 (not (string-blank-p py-repl-output)))
-        (let ((str (string-trim-right py-repl-output "\n")))
-          (funcall (if arg 'insert 'message) str))))))
+  (let ((proc (py-repl-get-process))
+        (bds (py-repl--last-expression-bounds)))
+    (when bds
+      (funcall (if arg 'insert 'message)
+               (apply #'py-repl-send
+                      (cons proc (cons nil bds)))))))
 
 (defun py-switch-to-repl (&optional arg)
   (interactive "P")

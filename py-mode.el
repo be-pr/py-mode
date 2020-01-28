@@ -35,7 +35,7 @@
 (declare-function py-xref--nenv "py-xref")
 (declare-function py-eldoc-documentation-function "py-eldoc")
 (declare-function py-repl-get-process "py-repl")
-(declare-function py-repl-send "py-repl" (proc str))
+(declare-function py-repl-send "py-repl" (proc read &rest input))
 
 (autoload 'py-completion-function "py-complete")
 (autoload 'py-eldoc-documentation-function "py-eldoc")
@@ -256,24 +256,21 @@
         (case-fold-search nil))
     (when (string-empty-p obj)
       (setq obj (read-string "Symbol: ")))
-    (or (py-repl-send proc (format "help(%s)" obj))
-        (user-error "Process under Pdb's control"))
-    (when (and py-repl-output
-               (not (string-empty-p py-repl-output)))
-      (with-current-buffer buf
-        (erase-buffer)
-        (py-doc-mode)
-        (insert py-repl-output)
-        (goto-char (point-min))
-        (save-excursion
-          (while (re-search-forward
-                  "^[[:upper:]]\\{2,\\}.*" nil t 1)
-            (with-silent-modifications
-	      (put-text-property
-               (match-beginning 0) (point) 'face 'bold)))))
-      (pop-to-buffer
-       buf '((display-buffer-reuse-window
-              display-buffer-pop-up-window))))))
+    (let ((result (py-repl-send proc nil "help(" obj ")"))
+          (rx "^[[:upper:]]\\{2,\\}.*"))
+      (when result
+        (with-current-buffer buf
+          (erase-buffer)
+          (py-doc-mode)
+          (insert result)
+          (goto-char (point-min))
+          (save-excursion
+            (while (re-search-forward rx nil t 1)
+              (with-silent-modifications
+	        (put-text-property
+                 (match-beginning 0) (point) 'face 'bold)))))))
+    (pop-to-buffer buf '((display-buffer-reuse-window
+                          display-buffer-pop-up-window)))))
 
 (defvar py-doc-mode-map
   (let ((map (make-sparse-keymap)))

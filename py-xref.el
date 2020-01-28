@@ -41,25 +41,21 @@
   (let ((proc (get-buffer-process (py-repl-process-buffer))))
     (if (not proc)
         (py-xref--local-make str)
-      (if (py-repl-send proc
-            (format "print(_get_location(%S))" str))
-          (when py-repl-output
-            (let ((out (string-trim-right py-repl-output "\n")))
-              (unless (string-empty-p out)
-                (pcase (read out)
-                  (`(quote ,_)
-                    (or (py-xref--local-make str)
-                        (user-error out)))
-                  (`(,file . ,line)
-                    (if (equal file "<stdin>")
-                        (or (py-xref--local-make str)
-                            (user-error "%s defined at <stdin>" str))
-                      (py-xref--make str file line 0)))
-                  ('None (user-error "Failed to locate %s" str))
-                  ;; If all fails, search current buffer.
-                  (_ (or (py-xref--local-make str)
-                         (user-error out)))))))
-        (py-xref--local-make str)))))
+      (let ((result (py-repl-send proc t
+                      "print(_get_location('" str "'))")))
+        (pcase result
+          (`(quote ,_)
+            (or (py-xref--local-make str)
+                (user-error result)))
+          (`(,file . ,line)
+            (if (equal file "<stdin>")
+                (or (py-xref--local-make str)
+                    (user-error "%s defined at <stdin>" str))
+              (py-xref--make str file line 0)))
+          ('None (user-error "Failed to locate %s" str))
+          ;; If all fails, search current buffer.
+          (_ (or (py-xref--local-make str)
+                 (and result (user-error result)))))))))
 
 (defun py-xref--find-inner-definition (str)
   (when (string-match "\\(?:self\\|cls\\)\\.\\([^.]+\\)" str)

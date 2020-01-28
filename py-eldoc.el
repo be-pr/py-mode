@@ -24,11 +24,11 @@
 (declare-function py--object-at-point "py-mode")
 
 (defun py-eldoc--openparen ()
-  (if (eq major-mode 'py-repl-mode)
-      (let ((pos (nth 1 (syntax-ppss))))
-        (unless (and pos (<= pos (cdr comint-last-prompt)))
-          pos))
-    (nth 1 (syntax-ppss))))
+  (let ((lastprompt (cdr comint-last-prompt))
+        (start (nth 1 (syntax-ppss))))
+    (and (or (and lastprompt start (> start lastprompt))
+             (not lastprompt))
+         start)))
 
 (defun py-eldoc--function-name ()
   (let ((openparen (py-eldoc--openparen)))
@@ -47,14 +47,13 @@
           (let* ((buf (py-repl-process-buffer))
                  (proc (get-buffer-process buf)))
             (when (process-live-p proc)
-              (py-repl-send proc
-                (format "_get_signature(%S, globals())" func))
-              (when (and py-repl-output
-                         (string-match "\\(.*\\)\n" py-repl-output)
-                         (/= (match-beginning 1) (match-end 1)))
-                (setq last-sig (match-string 1 py-repl-output))
-                (setq last-func func)
-                (eldoc-message last-sig)))))))))
+              (let ((result
+                     (py-repl-send proc nil
+                       "_get_signature('" func "',globals())")))
+                (unless (string= result "")
+                  (setq last-sig result)
+                  (setq last-func func)
+                  (eldoc-message last-sig))))))))))
 
 (defalias 'py-eldoc-documentation-function (py-eldoc--create))
 
