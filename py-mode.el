@@ -28,9 +28,7 @@
 
 (require 'comint)
 (require 'py-indent)
-(eval-when-compile (require 'subr-x)) ;string-empty-p
 
-(declare-function electric-pair-default-inhibit "elec-pair" (char))
 (declare-function py-xref-backend "py-xref")
 (declare-function py-xref--nenv "py-xref")
 (declare-function py-eldoc-documentation-function "py-eldoc")
@@ -254,7 +252,7 @@
         (buf (get-buffer-create "*python doc*"))
         (inhibit-read-only t)
         (case-fold-search nil))
-    (when (string-empty-p obj)
+    (when (string= obj "")
       (setq obj (read-string "Symbol: ")))
     (let ((result (py-repl-send proc nil "help(" obj ")"))
           (rx "^[[:upper:]]\\{2,\\}.*"))
