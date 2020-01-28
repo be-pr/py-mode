@@ -25,7 +25,6 @@
 (require 'pcase)
 (require 'py-repl)
 (require 'py-complete)
-(eval-when-compile (require 'subr-x)) ;string-empty-p, string-trim-right
 
 (defvar py--def-rx)
 
