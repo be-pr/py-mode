@@ -29,7 +29,8 @@
 (defvar py-mode-syntax-table)
 (defvar py-repl-prompt-regexp
   "^[^ \n]*\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)+\\|(Pdb) ")
-(defvar-local py-dedicated-process-buffer nil)
+(defvar py-dedicated-process-buffer nil)
+(make-variable-buffer-local 'py-dedicated-process-buffer)
 
 (defvar py-mode-path
   (if load-file-name (file-name-directory load-file-name)
@@ -154,18 +155,19 @@
 (defun py-eval-region (&optional beg end)
   (interactive "r")
   (let* ((buf (py-repl-process-buffer))
-         (proc (get-buffer-process buf))
-         (str (buffer-substring-no-properties beg end)))
+         (proc (get-buffer-process buf)))
     (unless proc (user-error "No running Python process"))
     (py-repl--barf-on-pdb buf)
-    (process-send-string
-     proc
-     ;; Anything that is a statement, i.e., not a single expression, has to be
-     ;; compiled in 'exec' mode, before being passed to `eval' as a bytecode
-     ;; object. Otherwise `eval' throws a SyntaxError.
-     (if (string-match-p "\n" str)
-         (format "eval(compile(r'''%s''', '<stdin>', 'exec'))" str)
-       (format "%s" str)))
+    ;; Anything that is a statement, i.e., not a single expression, has to be
+    ;; compiled in 'exec' mode, before being passed to `eval' as a bytecode
+    ;; object. Otherwise `eval' throws a SyntaxError.
+    (save-excursion
+      (goto-char end)
+      (if (>= beg (line-beginning-position))
+          (process-send-region proc beg end)
+        (process-send-string proc "eval(compile(r'''")
+        (process-send-region proc beg end)
+        (process-send-string proc "''', '<stdin>', 'exec'))")))
     (process-send-string proc "\n")
     (deactivate-mark)))
 
