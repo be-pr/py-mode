@@ -20,10 +20,8 @@
 ;;; Code:
 
 (require 'comint)
-(eval-when-compile (require 'subr-x)) ;string-blank-p, string-trim-right
 
 (declare-function py-xref-backend "py-xref")
-(declare-function py-indent-function "py-mode")
 (declare-function py-indent--beginning-of-block-p "py-indent")
 (declare-function py-completion-function "py-complete")
 (declare-function py-eldoc-documentation-function "py-eldoc")
@@ -31,7 +29,6 @@
 (defvar py-mode-syntax-table)
 (defvar py-repl-prompt-regexp
   "^[^ \n]*\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)+\\|(Pdb) ")
-(defvar py-repl-output nil)
 (defvar-local py-dedicated-process-buffer nil)
 
 (defvar py-mode-path
@@ -209,10 +206,10 @@
 
 (defun py-switch-to-repl (&optional arg)
   (interactive "P")
-  (if-let* ((proc (get-buffer-process (py-repl-process-buffer))))
-      (pop-to-buffer (process-buffer proc))
-    (when (yes-or-no-p "Start inferior Python process?")
-      (run-py arg))))
+  (let ((proc (get-buffer-process (py-repl-process-buffer))))
+    (cond (proc (pop-to-buffer (process-buffer proc)))
+          ((yes-or-no-p "Start inferior Python process?")
+           (run-py arg)))))
 
 (defun run-py (&optional arg)
   "Run an inferior Python process.
