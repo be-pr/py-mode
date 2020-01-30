@@ -210,16 +210,18 @@
   (interactive "P")
   (let ((proc (get-buffer-process (py-repl-process-buffer))))
     (cond (proc (pop-to-buffer (process-buffer proc)))
-          ((yes-or-no-p "Start inferior Python process?")
+          ((yes-or-no-p (format "Start %sinferior Python process?"
+                                (if arg "dedicated " "")))
            (run-py arg)))))
+
+(defvar py-executable (executable-find "python3"))
 
 (defun run-py (&optional arg)
   "Run an inferior Python process.
-With an \\[universal-argument], specify the path to the executable."
+With an \\[universal-argument], dedicate it to the current buffer."
   (interactive "P")
-  (and (eq major-mode 'py-mode)
+  (and arg (eq major-mode 'py-mode)
        (not (buffer-live-p py-dedicated-process-buffer))
-       (y-or-n-p "Dedicate process to current buffer?")
        (setq py-dedicated-process-buffer
              (generate-new-buffer
               (format "*python[%s]*" (buffer-name)))))
@@ -232,14 +234,17 @@ With an \\[universal-argument], specify the path to the executable."
     ;; Avoid __pycache__ and run utils.py as a startup script.
     (setenv "PYTHONSTARTUP" path)
     (make-comint-in-buffer
-     "Py REPL" buf
-     (if arg (read-file-name-default
-              "Executable: " nil nil t nil 'file-executable-p)
-       (or (executable-find "python3")
-           (error "Python executable not found")))
+     "Py REPL" buf (or py-executable (py-find-executable))
      nil "-i" "-B")
     (pop-to-buffer buf)
     (py-repl-mode)))
+
+(defun py-find-executable ()
+  (interactive)
+  (setq py-executable
+        (read-file-name-default "Executable: " nil
+                                (executable-find "python3")
+                                t nil 'file-executable-p)))
 
 (defvar py-repl-mode-map
   (let ((map (make-sparse-keymap)))
