@@ -84,7 +84,7 @@
           (forward-comment (- (point)))
         (end-of-line 1)
         (forward-comment (buffer-size)))
-      (beginning-of-line 1)
+      (forward-line 0)
       (while (and (or (> (current-indentation) level)
                       (looking-at "[ \t]*\\(?:$\\|#\\)")
                       (and (py-indent--beginning-of-block-p)
@@ -99,7 +99,7 @@
   (let ((state (syntax-ppss)))
     (unless (zerop (car state))
       (goto-char (car (last (nth 9 state))))
-      (beginning-of-line 1)))
+      (forward-line 0)))
   ;; Return a nil value so that we skip the `beginning-of-line' in
   ;; `beginning-of-defun'.
   (progn (back-to-indentation) nil))

@@ -65,13 +65,14 @@
       (setq py-repl--receiving-p nil)
       (with-current-buffer buffer
         (goto-char (point-max))
-        (let ((rx "^\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)+"))
+        (let ((rxfw "^\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)+")
+              (rxbw "\\(?:>>> \\(?:\\.\\{3\\} \\)*\\)?>>> "))
           ;; Delete parts of the result that can only be prompts.
-          (re-search-backward ">>> " nil t)
-          (skip-chars-backward " \t\n")
+          (re-search-backward rxbw nil t)
+          (skip-chars-backward "\n")
           (delete-region (point) (point-max))
           (goto-char (point-min))
-          (when (re-search-forward rx nil t 1)
+          (when (re-search-forward rxfw nil t)
             (delete-region (point) (point-min))))))))
 
 ;; The `input' can either be a list of any number of strings or a list of two
@@ -174,7 +175,7 @@
 (defun py-eval-line ()
   (interactive)
   (save-excursion
-    (beginning-of-line 1)
+    (forward-line 0)
     (skip-chars-forward " \t")
     (unless (eolp)
       (py-eval-region (point) (line-beginning-position 2)))))
@@ -191,8 +192,9 @@
       (scan-error nil))))
 
 (defun py-repl--last-expression-bounds ()
-  (let ((end (point)))
-    (save-excursion
+  (save-excursion
+    (forward-comment (- (point)))
+    (let ((end (point)))
       (while (py-repl--backward-token))
       (unless (= (point) end)
         (list (point) end)))))
