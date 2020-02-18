@@ -101,9 +101,10 @@
         (skip-chars-backward " \t")))
     (when pos (goto-char pos))))
 
-(defsubst py-indent--eolp ()
-  ;; eol or comment start syntax.
-  (or (eolp) (eq (char-syntax (following-char)) ?<)))
+(define-inline py-indent--eolp ()
+  ;; EOL or comment start syntax.
+  (inline-quote
+   (or (eolp) (eq (char-syntax (following-char)) ?<))))
 
 (defun py-indent-function ()
   (let ((col (current-column))
