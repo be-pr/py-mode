@@ -65,14 +65,16 @@
       (setq py-repl--receiving-p nil)
       (with-current-buffer buffer
         (goto-char (point-max))
-        (let ((rxfw "^\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)+")
-              (rxbw "\\(?:>>> \\(?:\\.\\{3\\} \\)*\\)?>>> "))
+        (forward-line 0)
+        (let ((rx "\\(?:\\(?:>>>\\|\\.\\{3\\}\\) \\)+"))
           ;; Delete parts of the result that can only be prompts.
-          (re-search-backward rxbw nil t)
+          (if (re-search-forward (concat rx "\\'") nil t)
+              (goto-char (match-beginning 0))
+            (forward-line 1))
           (skip-chars-backward "\n")
           (delete-region (point) (point-max))
           (goto-char (point-min))
-          (when (re-search-forward rxfw nil t)
+          (when (re-search-forward (concat "\\`" rx) nil t)
             (delete-region (point) (point-min))))))))
 
 ;; The `input' can either be a list of any number of strings or a list of two

@@ -201,10 +201,9 @@
       ;; cf. `indent-relative'.
       (let ((opoint (point-marker)))
         (forward-line 0)
-        (delete-region
-         (point) (progn
-                   (skip-chars-forward " \t")
-                   (point)))
+        (let ((beg (point)))
+          (skip-chars-forward " \t")
+          (delete-region beg (point)))
         (indent-to level 0)
         (when (> opoint (point))
           (goto-char opoint))
