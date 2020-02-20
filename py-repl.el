@@ -260,7 +260,7 @@ With an \\[universal-argument], dedicate it to the current buffer."
   "Python REPL"
   "Major mode for interacting with a Python interpreter.
 
-\\<py-repl-mode-map>"
+\\{py-repl-mode-map}"
   :syntax-table py-mode-syntax-table
   (setq comint-prompt-regexp py-repl-prompt-regexp)
   (setq comint-process-echoes nil)

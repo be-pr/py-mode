@@ -195,6 +195,7 @@
 
 (define-derived-mode py-mode prog-mode
   "Py" "Major mode for editing Python code.
+
 \\{py-mode-map}"
   :group 'py
   :keymap py-mode-map
