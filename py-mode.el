@@ -222,7 +222,8 @@
               #'py-electric-pair-inhibit)
   (setq-local electric-pair-skip-self #'py-electric-pair-skip)
   (setq-local electric-pair-open-newline-between-pairs
-              #'py-electric-pair-open-newline-p))
+              #'py-electric-pair-open-newline-p)
+  (setq-local electric-pair-skip-whitespace t))
 
 (defun py--object-at-point (&optional end)
   (save-excursion
