@@ -32,7 +32,7 @@
 (defvar py-dedicated-process-buffer nil)
 (make-variable-buffer-local 'py-dedicated-process-buffer)
 
-(defvar py-mode-path
+(defconst py-mode-path
   (if load-file-name (file-name-directory load-file-name)
     default-directory))
 

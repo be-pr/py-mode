@@ -29,18 +29,17 @@
     callfunc "'))"))
 
 (defun py-complete--table-create (&optional func)
-  (let (table oldname)
+  (let (table)
     (lambda (name pred flag)
       (pcase flag
         ('t (all-completions name table pred))
-        ('nil (or (equal name oldname)
+        ('nil (or table
                   (input-pending-p)
                   (let* ((buf (py-repl-process-buffer))
                          (process (get-buffer-process buf)))
                     (when (process-live-p process)
                       (setq table (py-complete--get-completions
-                                   process name func))
-                      (setq oldname name))))
+                                   process name func)))))
               (try-completion name table pred))
         ('metadata '(metadata (category . pymode)))))))
 
