@@ -28,7 +28,8 @@
     (lambda (str pred flag)
       (pcase flag
         ('t (all-completions str table pred))
-        ('nil (unless (and last-str (string-prefix-p last-str str))
+        ('nil (unless (and (/= (preceding-char) ?.)
+                           last-str (string-prefix-p last-str str))
                 (let* ((buf (py-repl-process-buffer))
                        (process (get-buffer-process buf))
                        (callfn (py-eldoc--function-name)))
