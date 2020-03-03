@@ -23,25 +23,22 @@
 (require 'py-repl)
 (require 'py-eldoc)
 
-(defun py-complete--get-completions (proc &optional name callfunc)
-  (py-repl-send proc t
-    "_lispify(_completer.get_completions('" name "','"
-    callfunc "'))"))
-
-(defun py-complete--table-create (&optional func)
-  (let (table oldname)
-    (lambda (name pred flag)
+(defun py-complete--table-create ()
+  (let (table last-str)
+    (lambda (str pred flag)
       (pcase flag
-        ('t (all-completions name table pred))
-        ('nil (or (equal name oldname)
-                  (input-pending-p)
-                  (let* ((buf (py-repl-process-buffer))
-                         (process (get-buffer-process buf)))
-                    (when (process-live-p process)
-                      (setq table (py-complete--get-completions
-                                   process name func))
-                      (setq oldname name))))
-              (try-completion name table pred))
+        ('t (all-completions str table pred))
+        ('nil (unless (and last-str (string-prefix-p last-str str))
+                (let* ((buf (py-repl-process-buffer))
+                       (process (get-buffer-process buf))
+                       (callfn (py-eldoc--function-name)))
+                  (when (process-live-p process)
+                    (setq table (py-repl-send process t
+                                  "_lispify(_completer.get_completions('"
+                                  str "','" callfn "'))"))
+                    (unless (string= str "")
+                      (setq last-str str)))))
+         (try-completion str table pred))
         ('metadata '(metadata (category . pymode)))))))
 
 (defun py-completion-function ()
@@ -53,10 +50,9 @@
         (skip-chars-backward ".")
         (skip-syntax-backward "w_"))
       (when (/= end (point))
-        (let ((func (py-eldoc--function-name)))
-          (list (point) end
-                (py-complete--table-create func)
-                :exclusive 'no))))))
+        (list (point) end
+              (py-complete--table-create)
+              :exclusive 'no)))))
 
 
 (provide 'py-complete)
