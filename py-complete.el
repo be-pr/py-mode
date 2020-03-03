@@ -23,14 +23,23 @@
 (require 'py-repl)
 (require 'py-eldoc)
 
-(defun py-complete-completion-table (str)
-  (let* ((callfn (py-eldoc--function-name))
-         (buf (py-repl-process-buffer))
-         (process (get-buffer-process buf)))
-    (when (process-live-p process)
-      (py-repl-send process t
-        "_lispify(_completer.get_completions('" str "','"
-        callfn "'))"))))
+(defun py-complete--table-create ()
+  (let (table last-str)
+    (lambda (str pred flag)
+      (pcase flag
+        ('t (all-completions str table pred))
+        ('nil (unless (and last-str (string-prefix-p last-str str))
+                (let* ((buf (py-repl-process-buffer))
+                       (process (get-buffer-process buf))
+                       (callfn (py-eldoc--function-name)))
+                  (when (process-live-p process)
+                    (setq table (py-repl-send process t
+                                  "_lispify(_completer.get_completions('"
+                                  str "','" callfn "'))"))
+                    (unless (string= str "")
+                      (setq last-str str)))))
+         (try-completion str table pred))
+        ('metadata '(metadata (category . pymode)))))))
 
 (defun py-completion-function ()
   (save-excursion
@@ -41,13 +50,9 @@
         (skip-chars-backward ".")
         (skip-syntax-backward "w_"))
       (when (/= end (point))
-        (let* ((buf (py-repl-process-buffer))
-               (process (get-buffer-process buf))
-               (name (buffer-substring-no-properties (point) end)))
-          (when (process-live-p process)
-            (list (point) end
-                  (py-complete-completion-table name)
-                  :exclusive 'no)))))))
+        (list (point) end
+              (py-complete--table-create)
+              :exclusive 'no)))))
 
 
 (provide 'py-complete)
