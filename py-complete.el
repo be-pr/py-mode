@@ -1,6 +1,6 @@
 ;; py-complete.el -*- lexical-binding: t -*-
 
-;; Copyright (c) 2019 Bernhard Pröll
+;; Copyright (c) 2019, 2020 Bernhard Pröll
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -23,7 +23,7 @@
 (require 'py-repl)
 (require 'py-eldoc)
 
-(defun py-completion-table (str)
+(defun py-complete-completion-table (str)
   (let* ((callfn (py-eldoc--function-name))
          (buf (py-repl-process-buffer))
          (process (get-buffer-process buf)))
@@ -46,7 +46,7 @@
                (name (buffer-substring-no-properties (point) end)))
           (when (process-live-p process)
             (list (point) end
-                  (py-completion-table name)
+                  (py-complete-completion-table name)
                   :exclusive 'no)))))))
 
 

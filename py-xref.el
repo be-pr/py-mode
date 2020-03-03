@@ -1,7 +1,7 @@
 ;;; py-xref.el --- Find definitions in Python -*- lexical-binding: t -*-
 
 
-;; Copyright (c) 2018, 2019 Bernhard Pröll
+;; Copyright (c) 2018, 2019, 2020 Bernhard Pröll
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -116,7 +116,7 @@
 
 (cl-defmethod xref-backend-identifier-completion-table
     ((_backend (eql python)))
-  (py-completion-table ""))
+  (py-complete-completion-table ""))
 
 
 (provide 'py-xref)
