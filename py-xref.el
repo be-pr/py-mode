@@ -116,7 +116,7 @@
 
 (cl-defmethod xref-backend-identifier-completion-table
     ((_backend (eql python)))
-  (py-complete--table-create))
+  (py-completion-table ""))
 
 
 (provide 'py-xref)
