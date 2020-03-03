@@ -41,6 +41,8 @@
          (try-completion str table pred))
         ('metadata '(metadata (category . pymode)))))))
 
+(defvar py-complete-completion-table (py-complete--table-create))
+
 (defun py-completion-function ()
   (save-excursion
     (skip-syntax-forward "w_")
@@ -51,7 +53,7 @@
         (skip-syntax-backward "w_"))
       (when (/= end (point))
         (list (point) end
-              (py-complete--table-create)
+              py-complete-completion-table
               :exclusive 'no)))))
 
 
