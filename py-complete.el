@@ -28,8 +28,7 @@
     (lambda (str pred flag)
       (pcase flag
         ('t (all-completions str table pred))
-        ('nil (unless (and (/= (preceding-char) ?.)
-                           last-str (string-prefix-p last-str str))
+        ('nil (unless (and last-str (string-prefix-p last-str str))
                 (let* ((buf (py-repl-process-buffer))
                        (process (get-buffer-process buf))
                        (callfn (py-eldoc--function-name)))
@@ -37,16 +36,14 @@
                     (setq table (py-repl-send process t
                                   "_lispify(_completer.get_completions('"
                                   str "','" callfn "'))"))
-                    (unless (string= str "")
-                      (setq last-str str)))))
-         (try-completion str table pred))
+                    (setq last-str str))))
+              (try-completion str table pred))
         ('metadata '(metadata (category . pymode)))))))
 
 (defvar py-complete-completion-table (py-complete--table-create))
 
 (defun py-completion-function ()
   (save-excursion
-    (skip-syntax-forward "w_")
     (let ((end (point)))
       (skip-syntax-backward "w_")
       (while (= (preceding-char) ?.)
