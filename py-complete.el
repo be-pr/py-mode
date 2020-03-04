@@ -48,6 +48,7 @@
 
 (defun py-completion-function ()
   (save-excursion
+    (skip-syntax-forward "W_")
     (let ((end (point)))
       (skip-syntax-backward "w_")
       (while (= (preceding-char) ?.)
