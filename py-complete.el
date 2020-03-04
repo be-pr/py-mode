@@ -28,10 +28,12 @@
     (lambda (str pred flag)
       (pcase flag
         ('t (all-completions str table pred))
-        ('nil (unless (and last-str (string-prefix-p last-str str))
+        ('nil (unless (and last-str (string-prefix-p last-str str)
+                           (/= (preceding-char) ?.))
                 (let* ((buf (py-repl-process-buffer))
                        (process (get-buffer-process buf))
-                       (callfn (py-eldoc--function-name)))
+                       (callfn (py-eldoc--function-name))
+                       (inhibit-quit nil))
                   (when (process-live-p process)
                     (setq table (py-repl-send process t
                                   "_lispify(_completer.get_completions('"
