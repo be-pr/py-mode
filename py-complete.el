@@ -24,12 +24,15 @@
 (require 'py-eldoc)
 
 (defun py-complete--table-create ()
-  (let (table last-str)
+  (let (table last-str last-point)
     (lambda (str pred flag)
       (pcase flag
         ('t (all-completions str table pred))
-        ('nil (unless (and last-str (string-prefix-p last-str str)
-                           (/= (preceding-char) ?.))
+        ('nil (unless (and last-str
+                           (if (= (preceding-char) ?.)
+                               (and (string= last-str str)
+                                    (= last-point (point)))
+                             (string-prefix-p last-str str)))
                 (let* ((buf (py-repl-process-buffer))
                        (process (get-buffer-process buf))
                        (callfn (py-eldoc--function-name))
@@ -38,7 +41,8 @@
                     (setq table (py-repl-send process t
                                   "_lispify(_completer.get_completions('"
                                   str "','" callfn "'))"))
-                    (setq last-str str))))
+                    (setq last-str str)
+                    (setq last-point (point)))))
               (try-completion str table pred))
         ('metadata '(metadata (category . pymode)))))))
 
