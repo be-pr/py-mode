@@ -32,15 +32,15 @@
                            (if (= (preceding-char) ?.)
                                (string= last-str str)
                              (string-prefix-p last-str str)))
+                (setq last-str str)
                 (let* ((buf (py-repl-process-buffer))
                        (process (get-buffer-process buf))
                        (callfn (py-eldoc--function-name))
                        (inhibit-quit nil))
-                  (when (process-live-p process)
+                  (when process
                     (setq table (py-repl-send process t
                                   "_lispify(_completer.get_completions('"
-                                  str "','" callfn "'))"))
-                    (setq last-str str))))
+                                  str "','" callfn "'))")))))
               (try-completion str table pred))
         ('metadata '(metadata (category . pymode)))))))
 

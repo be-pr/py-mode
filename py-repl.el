@@ -103,7 +103,7 @@
            ;; Intentionally block further execution until the subprocess
            ;; returns.
            (while py-repl--receiving-p
-             (accept-process-output proc))
+             (accept-process-output proc 0.1))
            (unless (zerop (buffer-size out))
              (with-current-buffer out
                (if (not read) (buffer-string)

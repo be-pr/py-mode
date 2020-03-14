@@ -46,10 +46,9 @@
             (eldoc-message last-sig)
           (let* ((buf (py-repl-process-buffer))
                  (proc (get-buffer-process buf)))
-            (when (process-live-p proc)
-              (let ((result
-                     (py-repl-send proc nil
-                       "_get_signature('" func "',globals())")))
+            (when proc
+              (let ((result (py-repl-send proc nil
+                              "_get_signature('" func "',globals())")))
                 (unless (string= result "")
                   (setq last-sig result)
                   (setq last-func func)
