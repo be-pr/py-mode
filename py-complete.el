@@ -54,7 +54,7 @@
       (while (= (preceding-char) ?.)
         (skip-chars-backward ".")
         (skip-syntax-backward "w_"))
-      (when (/= end (point))
+      (unless (or (= end (point)) (nth 8 (syntax-ppss)))
         (list (point) end
               py-complete-completion-table
               :exclusive 'no)))))
