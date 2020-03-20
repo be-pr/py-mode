@@ -153,7 +153,7 @@
         (funcall end-of-defun-function)
         (process-send-string proc "exec(compile(r'''")
         (process-send-region proc beg (point))
-        (process-send-string proc "''', '<stdin>', 'exec'))\n")))))
+        (process-send-string proc "\n''', '<stdin>', 'exec'))\n")))))
 
 (defun py-eval-region (&optional beg end)
   (interactive "r")
