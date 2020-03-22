@@ -42,17 +42,18 @@
   (let (last-func last-sig)
     (lambda ()
       (let ((func (py-eldoc--function-name)))
-        (if (equal func last-func)
-            (eldoc-message last-sig)
-          (let* ((buf (py-repl-process-buffer))
-                 (proc (get-buffer-process buf)))
-            (when proc
-              (let ((result (py-repl-send proc nil
-                              "_get_signature('" func "',globals())")))
-                (unless (string= result "")
-                  (setq last-sig result)
-                  (setq last-func func)
-                  (eldoc-message last-sig))))))))))
+        (when func
+          (if (equal func last-func)
+              (eldoc-message last-sig)
+            (let* ((buf (py-repl-process-buffer))
+                   (proc (get-buffer-process buf)))
+              (when proc
+                (let ((result (py-repl-send proc nil
+                                "_get_signature('" func "',globals())")))
+                  (unless (string= result "")
+                    (setq last-sig result)
+                    (setq last-func func)
+                    (eldoc-message last-sig)))))))))))
 
 (defalias 'py-eldoc-documentation-function (py-eldoc--create))
 

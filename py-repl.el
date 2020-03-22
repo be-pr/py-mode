@@ -103,7 +103,7 @@
            ;; Intentionally block further execution until the subprocess
            ;; returns.
            (while py-repl--receiving-p
-             (accept-process-output proc 0.1))
+             (accept-process-output proc 0.01))
            (unless (zerop (buffer-size out))
              (with-current-buffer out
                (if (not read) (buffer-string)
@@ -135,6 +135,17 @@
      proc (format "with open(r'''%s''') as f:
     exec(compile(f.read(), r'''%s''', 'exec'))\n\n" file file))))
 
+(defun py-repl--backward-decorators ()
+  (let ((orig (point)) decorated)
+    (while (and (zerop (forward-line -1))
+                (or (and (= (following-char) ?@)
+                         (setq decorated t))
+                    (progn (skip-chars-forward " \t")
+                           (eolp)))))
+    (if decorated
+        (forward-comment (buffer-size))
+      (goto-char orig))))
+
 (defun py-eval-defun ()
   (interactive)
   (let* ((buf (py-repl-process-buffer))
@@ -142,18 +153,23 @@
     (unless proc (user-error "No running Python process"))
     (py-repl--barf-on-pdb buf)
     (save-excursion
+      (forward-line 0)
       (comment-forward (buffer-size))
       (end-of-line)
       (funcall beginning-of-defun-function)
+      ;; Find the beginning of a multi-line statement.
       (while (not (bolp))
         (funcall beginning-of-defun-function))
+      (unless (py-indent--beginning-of-block-p)
+        (error "No statement at point"))
       (let ((beg (point)))
-        (unless (py-indent--beginning-of-block-p)
-          (error "No statement at point"))
         (funcall end-of-defun-function)
-        (process-send-string proc "exec(compile(r'''")
-        (process-send-region proc beg (point))
-        (process-send-string proc "\n''', '<stdin>', 'exec'))\n")))))
+        (let ((end (point)))
+          (goto-char beg)
+          (py-repl--backward-decorators)
+          (process-send-string proc "exec(compile(r'''")
+          (process-send-region proc (point) end)
+          (process-send-string proc "\n''', '<stdin>', 'exec'))\n"))))))
 
 (defun py-eval-region (&optional beg end)
   (interactive "r")
@@ -269,7 +285,6 @@ With an \\[universal-argument], dedicate it to the current buffer."
   (setq-local comint-scroll-to-bottom-on-input t)
   (setq-local comint-move-point-for-output t)
   (setq-local font-lock-keywords-only t)
-  (setq-local paragraph-separate "\\'")
   (setq-local paragraph-start py-repl-prompt-regexp)
   (add-hook 'xref-backend-functions #'py-xref-backend nil t)
   (add-hook 'completion-at-point-functions

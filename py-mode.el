@@ -254,8 +254,7 @@
         (buf (get-buffer-create "*python doc*"))
         (inhibit-read-only t)
         (case-fold-search nil))
-    (when (string= obj "")
-      (setq obj (read-string "Symbol: ")))
+    (unless obj (setq obj (read-string "Symbol: ")))
     (let ((result (py-repl-send proc nil "help(" obj ")"))
           (rx "^[[:upper:]]\\{2,\\}.*"))
       (when result
