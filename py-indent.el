@@ -1,6 +1,6 @@
 ;; py-indent.el -*- lexical-binding: t -*-
 
-;; Copyright (c) 2019 Bernhard Pröll
+;; Copyright (c) 2019, 2020 Bernhard Pröll
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -78,7 +78,8 @@
                        (> (current-indentation) level))
              (funcall func arg))))
         (t (funcall func arg)
-           ;; Move parenthetical constructs starting on the current line.
+           ;; Move parenthetical constructs or multi-line strings starting on
+           ;; the current line.
            (let ((pos (point)))
              (end-of-line)
              (let* ((state (syntax-ppss))

@@ -167,7 +167,7 @@
     (define-key map [?\C-c?\C-z] 'py-switch-to-repl)
     (define-key map [?\C-\M-x] 'py-eval-defun)
     (define-key map [?\C-c?\C-r] 'py-eval-region)
-    (define-key map [?\C-c?\C-l] 'py-eval-line)
+    (define-key map [?\C-c?\C-l] 'py-eval-simple-statement)
     (define-key map [remap eval-last-sexp] 'py-eval-last-expression)
     (define-key map [?\C-c?\C-d] 'py-describe-symbol)
     (define-key map [backtab] 'py-indent-dedent)
