@@ -29,9 +29,11 @@
       (pcase flag
         ('t (all-completions str table pred))
         ('nil (unless (and last-str
-                           (if (= (preceding-char) ?.)
-                               (string= last-str str)
-                             (string-prefix-p last-str str)))
+                           (cond ((string= last-str "")
+                                  (string= str ""))
+                                 ((= (preceding-char) ?.)
+                                  (string= last-str str))
+                                 (t (string-prefix-p last-str str))))
                 (setq last-str str)
                 (let* ((buf (py-repl-process-buffer))
                        (process (get-buffer-process buf))
@@ -48,15 +50,14 @@
 
 (defun py-completion-function ()
   (save-excursion
-    (skip-syntax-forward "W_")
+    (skip-syntax-forward "w_")
     (let ((end (point)))
       (skip-syntax-backward "w_")
       (while (= (preceding-char) ?.)
         (skip-chars-backward ".")
         (skip-syntax-backward "w_"))
-      (unless (or (= end (point)) (nth 8 (syntax-ppss)))
-        (list (point) end
-              py-complete-completion-table
+      (unless (= end (point))
+        (list (point) end py-complete-completion-table
               :exclusive 'no)))))
 
 
