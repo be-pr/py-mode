@@ -228,7 +228,7 @@
           ((and (eq stx ?\") (nth 3 (syntax-ppss))) nil)
           (t (forward-sexp -1) t))))
 
-;; Optionally ignore everything but a name at point, i.e., an atom or a
+;; Optionally ignore everything but a name at point, i.e., an atom or an
 ;; attribute reference, so that we can safely pass the substring to xref &
 ;; eldoc.
 (defun py-repl--primary-bounds (&optional names-only)

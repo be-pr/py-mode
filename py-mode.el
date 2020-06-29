@@ -100,9 +100,10 @@
   (py-indent--beginning-of-continuation)
   ;; Multiline block start.
   (let ((state (syntax-ppss)))
-    (unless (zerop (car state))
-      (goto-char (car (last (nth 9 state))))
-      (forward-line 0)))
+    (cond ((not (zerop (car state)))
+           (goto-char (car (last (nth 9 state))))
+           (forward-line 0))
+          ((nth 3 state) (goto-char (nth 8 state)))))
   ;; Return a nil value so that we skip the `beginning-of-line' in
   ;; `beginning-of-defun'.
   (progn (back-to-indentation) nil))
