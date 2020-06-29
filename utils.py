@@ -46,29 +46,24 @@ class _Completer:
         self.defaults = dir(__builtins__) + keyword.kwlist
 
     def get_completions(self, cstring, callfunc):
-        primaries = cstring.split('.')
-        identifier = primaries.pop()
-        primary = '.'.join(primaries)
         acc = []
-        if primary:
+        if cstring:
             try:
-                obj = eval(primary)
+                obj = eval(cstring)
                 if hasattr(obj, '__class__'):
                     # Remove duplicates.
-                    acc = list(set(self._get_attrs(obj)))
+                    return list(set(self._get_attrs(obj)))
                 else:
-                    acc = dir(obj)
-                return [primary + "." + id for id in acc]
+                    return dir(obj)
             except (NameError, SyntaxError):
                 pass
-        else:
-            try:
-                func = eval(callfunc)
-                # Keyword-only parameters.
-                acc = [kw + '=' for kw in func.__kwdefaults__]
-            except (NameError, SyntaxError, AttributeError):
-                pass
-            return list(set(self.defaults + list(globals()) + acc))
+        try:
+            func = eval(callfunc)
+            # Keyword-only parameters.
+            acc = [kw + '=' for kw in func.__kwdefaults__]
+        except (NameError, SyntaxError, AttributeError):
+            pass
+        return list(set(self.defaults + list(globals()) + acc))
 
     @staticmethod
     def _get_attrs(obj):
@@ -142,3 +137,7 @@ def _get_location(string):
         return ('("{}" . {})'
                 .format(object.co_filename,
                         object.co_firstlineno))
+    # Attribute reference that does not resolve to an object of any of
+    # the types above.
+    if '.' in string:
+        return _get_location(string.split('.')[0])

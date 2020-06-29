@@ -21,14 +21,14 @@
 
 (require 'py-repl)
 
-(declare-function py--object-at-point "py-mode")
-
 (defun py-eldoc--openparen ()
-  (let ((lastprompt (cdr comint-last-prompt))
-        (start (nth 1 (syntax-ppss))))
-    (and (or (and lastprompt start (> start lastprompt))
-             (not lastprompt))
-         start)))
+  (let* ((state (syntax-ppss))
+         (start (nth 1 state)))
+    (and start
+         (not (nth 4 state))
+         (let ((prompt (cdr comint-last-prompt)))
+           (unless (and prompt (< start prompt))
+             start)))))
 
 (defun py-eldoc--function-name ()
   (let ((openparen (py-eldoc--openparen)))
@@ -36,24 +36,26 @@
       (save-excursion
         (goto-char openparen)
         (skip-chars-backward " \t")
-        (py--object-at-point)))))
+        (let ((bds (py-repl--primary-bounds t)))
+          (when bds (apply #'buffer-substring-no-properties bds)))))))
 
 (defun py-eldoc--create ()
   (let (last-func last-sig)
     (lambda ()
       (let ((func (py-eldoc--function-name)))
-        (when func
-          (if (equal func last-func)
-              (eldoc-message last-sig)
-            (let* ((buf (py-repl-process-buffer))
-                   (proc (get-buffer-process buf)))
-              (when proc
-                (let ((result (py-repl-send proc nil
-                                "_get_signature('" func "',globals())")))
-                  (unless (string= result "")
-                    (setq last-sig result)
-                    (setq last-func func)
-                    (eldoc-message last-sig)))))))))))
+        (cond
+          ((not func) nil)
+          ((equal func last-func) (eldoc-message last-sig))
+          (t (let* ((buf (py-repl-process-buffer))
+                    (proc (get-buffer-process buf)))
+               (when proc
+                 (let ((result
+                        (py-repl-send proc nil
+                          "_get_signature('''" func "''',globals())")))
+                   (unless (string= result "")
+                     (setq last-sig result)
+                     (setq last-func func)
+                     (eldoc-message last-sig)))))))))))
 
 (defalias 'py-eldoc-documentation-function (py-eldoc--create))
 

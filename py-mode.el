@@ -34,10 +34,13 @@
 (declare-function py-eldoc-documentation-function "py-eldoc")
 (declare-function py-repl-get-process "py-repl")
 (declare-function py-repl-send "py-repl" (proc read &rest input))
+(declare-function py-repl--primary-bounds "py-repl"
+                  (&optional names-only))
 
 (autoload 'py-completion-function "py-complete")
 (autoload 'py-eldoc-documentation-function "py-eldoc")
 (autoload 'py-xref-backend "py-xref")
+(autoload 'py-xref--nenv "py-xref")
 (autoload 'py-switch-to-repl "py-repl" nil t)
 (autoload 'run-py "py-repl" nil t)
 
@@ -168,7 +171,7 @@
     (define-key map [?\C-\M-x] 'py-eval-defun)
     (define-key map [?\C-c?\C-r] 'py-eval-region)
     (define-key map [?\C-c?\C-l] 'py-eval-simple-statement)
-    (define-key map [remap eval-last-sexp] 'py-eval-last-expression)
+    (define-key map [remap eval-last-sexp] 'py-eval-last-primary)
     (define-key map [?\C-c?\C-d] 'py-describe-symbol)
     (define-key map [backtab] 'py-indent-dedent)
     (define-key map [C-tab] 'py-indent-indent)
@@ -225,38 +228,20 @@
               #'py-electric-pair-open-newline-p)
   (setq-local electric-pair-skip-whitespace t))
 
-(defun py--object-at-point (&optional end)
-  (save-excursion
-    (let ((limit (line-beginning-position))
-          forward-sexp-function beg)
-      (or end (setq end (save-excursion
-                          (skip-syntax-forward "w_")
-                          (point))))
-      (skip-syntax-backward "w_")
-      ;; Since we pass identifiers found to `eval', ignore any function calls.
-      (when (/= (preceding-char) ?\))
-        (setq beg (point))
-        ;; Jump over attributerefs.
-        (while (= (preceding-char) ?.)
-          (forward-sexp -1)
-          ;; Multiline string inputs will cause a SyntaxError in `eval'.
-          (unless (or (< (point) limit)
-                      (= (following-char) ?\())
-            (setq beg (point))))
-        (unless (= beg end)
-          (buffer-substring-no-properties beg end))))))
-
 (defun py-describe-symbol ()
   (interactive)
-  (let ((obj (py--object-at-point))
-        (pop-up-windows t)
-        (proc (py-repl-get-process))
-        (buf (get-buffer-create "*python doc*"))
-        (inhibit-read-only t)
-        (case-fold-search nil))
-    (unless obj (setq obj (read-string "Symbol: ")))
-    (let ((result (py-repl-send proc nil "help(" obj ")"))
-          (rx "^[[:upper:]]\\{2,\\}.*"))
+  (save-excursion
+    (skip-syntax-forward "w_")
+    (let* ((proc (py-repl-get-process))
+           (bds (py-repl--primary-bounds t))
+           (prim (if bds (apply #'buffer-substring-no-properties bds)
+                   (read-string "Primary: ")))
+           (buf (get-buffer-create "*python doc*"))
+           (result (py-repl-send proc nil "help(" prim ")"))
+           (rx "^[[:upper:]]\\{2,\\}.*")
+           (pop-up-windows t)
+           (inhibit-read-only t)
+           (case-fold-search nil))
       (when result
         (with-current-buffer buf
           (erase-buffer)
@@ -266,10 +251,10 @@
           (save-excursion
             (while (re-search-forward rx nil t 1)
               (with-silent-modifications
-	        (put-text-property
-                 (match-beginning 0) (point) 'face 'bold)))))))
-    (pop-to-buffer buf '((display-buffer-reuse-window
-                          display-buffer-pop-up-window)))))
+	            (put-text-property
+                 (match-beginning 0) (point) 'face 'bold)))))
+        (pop-to-buffer buf '((display-buffer-reuse-window
+                              display-buffer-pop-up-window)))))))
 
 (defvar py-doc-mode-map
   (let ((map (make-sparse-keymap)))

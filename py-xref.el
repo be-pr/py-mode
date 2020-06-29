@@ -28,13 +28,14 @@
 
 (defvar py--def-rx)
 
-(declare-function py--object-at-point "py-mode")
-
 (defun py-xref-backend () 'python)
 
 (cl-defmethod xref-backend-identifier-at-point
     ((_backend (eql python)))
-  (py--object-at-point))
+  (save-excursion
+    (skip-syntax-forward "w_")
+    (let ((bds (py-repl--primary-bounds t)))
+      (when bds (apply #'buffer-substring-no-properties bds)))))
 
 (cl-defmethod xref-backend-definitions ((_backend (eql python)) str)
   (let ((proc (get-buffer-process (py-repl-process-buffer))))

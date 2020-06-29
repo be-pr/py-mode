@@ -20,6 +20,7 @@
 ;;; Code:
 
 (require 'py-mode)
+(require 'py-repl)
 (require 'ert)
 
 (defmacro py-test-with-temp-buffer (&rest body)
@@ -324,6 +325,27 @@ Y
     def func1():
         passX
 " -1))))
+
+(defun py-test-primary (bufstr &optional names-only)
+  (py-test-with-buffer bufstr
+    (apply #'buffer-substring-no-properties
+           (py-repl--primary-bounds names-only))))
+
+(ert-deftest py-test-primary-bounds ()
+  (py-test-with-temp-buffer
+    (should (equal (py-test-primary "import osX") "import os"))
+    (should (equal (py-test-primary "import osX" t) "os"))
+    (should (equal (py-test-primary "os.nameX" t) "os.name"))
+    (should-error (py-test-primary "
+('foo'
+ .replace('o', '_')X)" t))
+    (should (equal (py-test-primary "
+'foo' \\
+.replaceX") "'foo' \\
+.replace"))
+    (should (equal (py-test-primary "'foo'.replace('o', ''X)") "''"))
+    (should (equal (py-test-primary "f'{os.nameX}'") "os.name"))
+    (should (equal (py-test-primary "eval('os.nameX')") "os.name"))))
 
 
 (provide 'py-test)

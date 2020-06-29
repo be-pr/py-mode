@@ -213,33 +213,47 @@
         (process-send-region proc (point) end)
         (process-send-string proc "\n''', '<stdin>', 'single'))\n")))))
 
-(defun py-repl--backward-token ()
-  (let ((orig (point)) forward-sexp-function)
-    (skip-chars-backward " \t")
-    (condition-case nil
-        (cond ((bolp) nil)
-              ((zerop (skip-syntax-backward "."))
-               (forward-sexp -1) t)
-              ((memq (following-char) '(?: ?, ?`)) nil)
-              ((/= orig (point)) t))
-      (scan-error nil))))
+(defun py-repl--backward-token (&optional names-only)
+  (let* ((c (preceding-char))
+         (stx (char-syntax c)) forward-sexp-function)
+    (cond ((bobp) nil)
+          ((bolp) (unless names-only
+                    (forward-comment (- (point)))
+                    ;; Line continuation.
+                    (not (zerop (skip-chars-backward "\\\\")))))
+          ((= c ?.) (skip-chars-backward ".") t)
+          ((memq stx '(?. ?\()) nil)
+          ((and names-only (memq stx '(?\) ? ))) nil)
+          ;; Do not parse beyond the delimiter of a string.
+          ((and (eq stx ?\") (nth 3 (syntax-ppss))) nil)
+          (t (forward-sexp -1) t))))
 
-(defun py-repl--last-expression-bounds ()
+;; Optionally ignore everything but a name at point, i.e., an atom or a
+;; attribute reference, so that we can safely pass the substring to xref &
+;; eldoc.
+(defun py-repl--primary-bounds (&optional names-only)
   (save-excursion
-    (forward-comment (- (point)))
+    (unless names-only (forward-comment (- (point))))
     (let ((end (point)))
-      (while (py-repl--backward-token))
-      (unless (= (point) end)
+      (while (py-repl--backward-token names-only)
+        (unless names-only (skip-chars-backward " \t")))
+      (when (/= (point) end)
+        (forward-comment end)
         (list (point) end)))))
 
-(defun py-eval-last-expression (&optional arg)
+;; primary ::= atom | attributeref | subscription | slicing | call
+(defun py-eval-last-primary (&optional arg)
+  "Evaluate the primary before point.
+A primary represents the most tightly bound operation in Python. Either
+print the value into the echo area or, with prefix argument ARG, insert the
+value at point."
   (interactive "P")
-  (let ((proc (py-repl-get-process))
-        (bds (py-repl--last-expression-bounds)))
-    (when bds
-      (funcall (if arg 'insert 'message)
-               (apply #'py-repl-send
-                      (cons proc (cons nil bds)))))))
+  (let* ((proc (py-repl-get-process))
+         (bds (py-repl--primary-bounds))
+         (args (cons proc (cons nil bds)))
+         (result (when bds (apply #'py-repl-send args))))
+    (when result
+      (funcall (if arg 'insert 'message) result))))
 
 (defun py-switch-to-repl (&optional arg)
   (interactive "P")
