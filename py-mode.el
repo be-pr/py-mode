@@ -43,6 +43,11 @@
 (autoload 'py-xref--nenv "py-xref")
 (autoload 'py-switch-to-repl "py-repl" nil t)
 (autoload 'run-py "py-repl" nil t)
+(autoload 'py-repl-get-process "py-repl")
+(autoload 'py-eval-defun "py-repl" nil t)
+(autoload 'py-eval-region "py-repl" nil t)
+(autoload 'py-eval-simple-statement "py-repl" nil t)
+(autoload 'py-eval-last-primary "py-repl" nil t)
 
 (defvar electric-pair-pairs)
 (defvar electric-pair-inhibit-predicate)
@@ -116,8 +121,7 @@
                     (nth 8 (syntax-ppss)))))
     (forward-comment (- (point)))))
 
-(defconst py--def-rx
-  "^[ \t]*\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+")
+(defconst py--def-rx "^[ \t]*\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+")
 
 (defun py-imenu-create-index ()
   (goto-char (point-max))
