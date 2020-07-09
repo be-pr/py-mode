@@ -38,7 +38,7 @@ def _get_signature(string, globals):
                 doc = inspect.getdoc(obj).splitlines()
                 if doc:
                     print(string, ' -> ', doc[0], sep='')
-            except ValueError:
+            except (ValueError, AttributeError):
                 pass
 
 class _Completer:
