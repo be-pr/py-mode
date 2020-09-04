@@ -1,6 +1,6 @@
 ;; py-repl.el -*- lexical-binding: t -*-
 
-;; Copyright (c) 2019 Bernhard Pröll
+;; Copyright (c) 2019, 2020 Bernhard Pröll
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -86,30 +86,30 @@
         (in (generate-new-buffer " *py in*"))
         (out (generate-new-buffer " *py out*")))
     (unwind-protect
-         (let ((standard-output in))
-           (with-current-buffer (process-buffer proc)
-             (py-repl--barf-on-pdb)
-             (set-process-filter proc (py-repl--filter-create out)))
-           (if (integer-or-marker-p (car input))
-               (with-current-buffer in
-                 (insert-buffer-substring oldbuf (car input)
-                                          (cadr input)))
-             (dolist (str input) (princ str)))
-           (setq standard-output out)
-           (setq py-repl--receiving-p t)
-           (with-current-buffer in
-             (process-send-region proc (point-min) (point-max))
-             (process-send-string proc "\n"))
-           ;; Intentionally block further execution until the subprocess
-           ;; returns.
-           (while py-repl--receiving-p
-             (accept-process-output proc 0.01))
-           (unless (zerop (buffer-size out))
-             (with-current-buffer out
-               (if (not read) (buffer-string)
-                 (when (= (following-char) ?\()
-                   (condition-case nil (read out)
-                     (invalid-read-syntax nil)))))))
+        (let ((standard-output in))
+          (with-current-buffer (process-buffer proc)
+            (py-repl--barf-on-pdb)
+            (set-process-filter proc (py-repl--filter-create out)))
+          (if (integer-or-marker-p (car input))
+              (with-current-buffer in
+                (insert-buffer-substring oldbuf (car input) (cadr input)))
+            (dolist (str input) (princ str)))
+          (setq standard-output out)
+          (setq py-repl--receiving-p t)
+          (with-current-buffer in
+            (process-send-region proc (point-min) (point-max))
+            (process-send-string proc "\n"))
+          ;; Intentionally block further execution until the subprocess
+          ;; returns.
+          (while py-repl--receiving-p
+            (accept-process-output proc 0.01))
+          (unless (zerop (buffer-size out))
+            (with-current-buffer out
+              (if (not read) (buffer-string)
+                (when (= (following-char) ?\()
+                  (condition-case nil
+                      (read out)
+                    (invalid-read-syntax nil)))))))
       (set-process-filter proc oldfilter)
       (and (buffer-name in) (kill-buffer in))
       (and (buffer-name out) (kill-buffer out))
@@ -131,8 +131,7 @@
     (unless file (user-error "Current buffer is not visiting a file"))
     (unless proc (user-error "No running Python process"))
     (py-repl--barf-on-pdb buf)
-    (process-send-string
-     proc (format "with open(r'''%s''') as f:
+    (process-send-string proc (format "with open(r'''%s''') as f:
     exec(compile(f.read(), r'''%s''', 'exec'))\n\n" file file))))
 
 (defun py-repl--backward-decorators ()
@@ -215,7 +214,8 @@
 
 (defun py-repl--backward-token (&optional names-only)
   (let* ((c (preceding-char))
-         (stx (char-syntax c)) forward-sexp-function)
+         (stx (char-syntax c))
+         forward-sexp-function)
     (cond ((bobp) nil)
           ((bolp) (unless names-only
                     (forward-comment (- (point)))
@@ -233,10 +233,12 @@
 ;; eldoc.
 (defun py-repl--primary-bounds (&optional names-only)
   (save-excursion
-    (unless names-only (forward-comment (- (point))))
+    (unless names-only
+      (forward-comment (- (point))))
     (let ((end (point)))
       (while (py-repl--backward-token names-only)
-        (unless names-only (skip-chars-backward " \t")))
+        (unless names-only
+          (skip-chars-backward " \t")))
       (when (/= (point) end)
         (forward-comment end)
         (list (point) end)))))
@@ -282,17 +284,16 @@ With an \\[universal-argument], dedicate it to the current buffer."
       (message "An existing PYTHONSTARTUP has been replaced"))
     ;; Avoid __pycache__ and run utils.py as a startup script.
     (setenv "PYTHONSTARTUP" path)
-    (make-comint-in-buffer
-     "Py REPL" buf (or py-executable (py-find-executable))
-     nil "-i" "-B")
+    (make-comint-in-buffer "Py REPL" buf
+                           (or py-executable (py-find-executable))
+                           nil "-i" "-B")
     (pop-to-buffer buf)
     (py-repl-mode)))
 
 (defun py-find-executable ()
   (interactive)
   (setq py-executable
-        (read-file-name-default "Executable: " nil
-                                (executable-find "python3")
+        (read-file-name-default "Executable: " nil (executable-find "python3")
                                 t nil 'file-executable-p)))
 
 (defvar py-repl-mode-map
@@ -316,8 +317,7 @@ With an \\[universal-argument], dedicate it to the current buffer."
   (setq-local font-lock-keywords-only t)
   (setq-local paragraph-start py-repl-prompt-regexp)
   (add-hook 'xref-backend-functions #'py-xref-backend nil t)
-  (add-hook 'completion-at-point-functions
-            #'py-completion-function nil t)
+  (add-hook 'completion-at-point-functions #'py-completion-function nil t)
   (add-function :override (local 'eldoc-documentation-function)
                 #'py-eldoc-documentation-function))
 

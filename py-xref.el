@@ -24,7 +24,6 @@
 (require 'xref)
 (require 'pcase)
 (require 'py-repl)
-(require 'py-complete)
 
 (defvar py--def-rx)
 
@@ -60,26 +59,24 @@
 (defun py-xref--find-inner-definition (str)
   (when (string-match "\\(?:self\\|cls\\)\\.\\([^.]+\\)" str)
     (setq str (match-string 1 str)))
-  (cl-loop
-     with level = (current-indentation)
-     and nenv = (py-xref--nenv)
-     and rx = (concat py--def-rx str "\\_>")
-     and limit
-     until (zerop level) do
-       (funcall beginning-of-defun-function)
-     ;; Find enclosing block statement.
-       (while (= (current-indentation) level)
-         (funcall beginning-of-defun-function))
-       (setq limit (line-beginning-position))
-       (funcall end-of-defun-function)
-     if (cl-loop
-           while (re-search-backward rx limit t 1)
-           unless (> (py-xref--nenv) nenv)
-           return t)
-     return t
-     else do
-       (goto-char limit)
-       (setq level (current-indentation))))
+  (cl-loop with level = (current-indentation)
+           and nenv = (py-xref--nenv)
+           and rx = (concat py--def-rx str "\\_>")
+           and limit
+           until (zerop level) do
+           (funcall beginning-of-defun-function)
+           ;; Find enclosing block statement.
+           (while (= (current-indentation) level)
+             (funcall beginning-of-defun-function))
+           (setq limit (line-beginning-position))
+           (funcall end-of-defun-function)
+           if (cl-loop while (re-search-backward rx limit t 1)
+                       unless (> (py-xref--nenv) nenv)
+                       return t)
+           return t
+           else do
+           (goto-char limit)
+           (setq level (current-indentation))))
 
 (defun py-xref--nenv ()
   (save-excursion
@@ -93,11 +90,10 @@
 (defun py-xref--find-top-level-definition (str)
   (save-excursion
     (goto-char (point-min))
-    (cl-loop
-       with rx = (concat py--def-rx str "\\_>")
-       while (re-search-forward rx nil t 1)
-       when (zerop (py-xref--nenv))
-       return t)))
+    (cl-loop with rx = (concat py--def-rx str "\\_>")
+             while (re-search-forward rx nil t 1)
+             when (zerop (py-xref--nenv))
+             return t)))
 
 (defun py-xref--local-make (str)
   (save-excursion
@@ -109,14 +105,16 @@
         (py-xref--make str (current-buffer) (point-at-bol))))))
 
 (defun py-xref--make (str loc &rest rest)
-  (list (xref-make
-         str (apply (if (bufferp loc)
-                        #'xref-make-buffer-location
-                      #'xref-make-file-location)
-                    loc rest))))
+  (list (xref-make str (apply (if (bufferp loc)
+                                  #'xref-make-buffer-location
+                                #'xref-make-file-location)
+                              loc rest))))
+
+(defvar py-complete-completion-table)
 
 (cl-defmethod xref-backend-identifier-completion-table
     ((_backend (eql python)))
+  (or (featurep 'py-complete) (require 'py-complete))
   py-complete-completion-table)
 
 

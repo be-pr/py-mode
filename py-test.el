@@ -1,6 +1,6 @@
 ;; py-test.el -*- lexical-binding: t -*-
 
-;; Copyright (c) 2019 Bernhard Pröll
+;; Copyright (c) 2019, 2020 Bernhard Pröll
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -27,25 +27,25 @@
   "Run BODY in an `r-mode' buffer."
   (declare (indent 0) (debug body))
   `(with-temp-buffer
-    (py-mode)
-    ,@body))
+     (py-mode)
+     ,@body))
 
 (defmacro py-test-with-buffer (bufstr &rest body)
   "Run BODY with `buffer-string' set to BUFSTR.
 Uppercase X in BUFSTR marks current point."
   (declare (indent 1) (debug t))
   `(let (case-fold-search endpos)
-    (unless buffer-file-name
-      (setf (buffer-string) ,bufstr)
-      (goto-char (point-min))
-      (when (re-search-forward "X" nil t 1)
-        (replace-match "" t t))
-      (save-excursion
-        (goto-char (point-min))
-        (when (re-search-forward "Y" nil t 1)
-          (replace-match "" t t)
-          (setq endpos (point))))
-      (progn ,@body))))
+     (unless buffer-file-name
+       (setf (buffer-string) ,bufstr)
+       (goto-char (point-min))
+       (when (re-search-forward "X" nil t 1)
+         (replace-match "" t t))
+       (save-excursion
+         (goto-char (point-min))
+         (when (re-search-forward "Y" nil t 1)
+           (replace-match "" t t)
+           (setq endpos (point))))
+       (progn ,@body))))
 
 (defun py-test-tab-level (bufstr)
   (py-test-with-buffer bufstr
@@ -183,47 +183,11 @@ Xreturn True")))))
 
 (ert-deftest py-test-beginning-of-defun ()
   (py-test-with-temp-buffer
-    ;; Test `py-indent--beginning-of-continuation'.
-    (should (py-test-nav-function 'beginning-of-defun "
-Ywith expr1 as x, \\
-expr2 as y, \\
-Xexpr3 as z:"))
-    (should (py-test-nav-function 'beginning-of-defun "
-Ywith expr1 as x, \\
-expr2 as y, \\ X
-expr3 as z:"))
-    (should (py-test-nav-function 'beginning-of-defun "
-Ywith expr1 as x, \\
-expr2 as y, \\
-expr3 as z:
-    pass
-X"))
-    (should (py-test-nav-function 'beginning-of-defun "
-Ywith expr1 as x, \\
-expr2 as y, \\
-expr3 as z:
-    Xpass"))
-    ;; Test `py-indent--beginning-of-block-p'.
-    (should (py-test-nav-function 'beginning-of-defun "
-def func():
-    pass
 
-Ywith expr1 as x, \\
-    expr2 as y, \\ \t
-X    expr3 as z:
-        pass"))
     (should (py-test-nav-function 'beginning-of-defun "
 Yif (x == 0 and
-    y == 1): X
-    pass"))
-    (should (py-test-nav-function 'beginning-of-defun "
-Yif (x == 0 and
-    # Comment.X
-    y == 1):
-    pass"))
-    ;; Skip trailing comment with `py-indent--beginning-of-block-p'.
-    (should (py-test-nav-function 'beginning-of-defun "
-Yif x == 0 and y == 1: # Comment.X
+# Comment
+    y == 1):X
     pass"))
     (should (py-test-nav-function 'beginning-of-defun "
 if x == 0:
@@ -231,10 +195,6 @@ if x == 0:
 Yelse:
     X
 "))
-    (should (py-test-nav-function 'beginning-of-defun "
-if x == 0:
-    pass
-Yelse:X"))
     (should (py-test-nav-function 'beginning-of-defun "
 Yclass Test:
 
@@ -259,12 +219,6 @@ X
 Ydef func1():
     pass" -1))
     (should (py-test-nav-function 'beginning-of-defun "
-class Test:
-    def func():
-        Yif condition:
-            X
-"))
-    (should (py-test-nav-function 'beginning-of-defun "
 Xdef func():
     pass
 Ydef func1():
@@ -276,31 +230,7 @@ def func():
     pass
 Ydef func1():
     pass
-" -2))
-    (should (py-test-nav-function 'beginning-of-defun "
-class Test:
-
-    def func():X
-        pass
-
-    Ydef func1():
-        pass
-" -1))
-    (should (py-test-nav-function 'beginning-of-defun "
-Yclass Test:
-
-    def func():
-        pass
-X
-    def func1():
-        pass
-"))
-    (should (py-test-nav-function 'beginning-of-defun "
-Yclass Test:
-
-    def func():
-        pass
-X"))))
+" -2))))
 
 (ert-deftest py-test-end-of-defun ()
   (py-test-with-temp-buffer
@@ -317,11 +247,11 @@ class Test:
     def func():
         pass
 X" -1))
-    (should (py-test-nav-function 'end-of-defun "
+    (should (py-test-nav-function 'end-of-defun "Y
 class Test:
     def func():
         pass
-Y
+
     def func1():
         passX
 " -1))))

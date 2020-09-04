@@ -21,7 +21,7 @@
 
 (require 'cl-lib)
 
-;; The Python lexer considers everything following a semicolon to be a block
+;; The Python parser considers everything following a semicolon to be a block
 ;; statement. The lines after the start of a block must be indented over by at
 ;; least one space character.
 (defun py-indent--beginning-of-block-p ()
@@ -50,58 +50,54 @@
 
 (defun py-indent--dedent (arg)
   (unless (zerop (current-indentation))
-    (delete-region
-     (point) (+ (point)
-                (min (current-indentation)
-                     (* (abs arg) tab-width))))))
+    (delete-region (point) (+ (point) (min (current-indentation)
+                                           (* (abs arg) tab-width))))))
 
 (defun py-indent--cmd-create (func)
   (lambda (arg)
     (interactive "p")
     (save-excursion
-      (cond
-        ((region-active-p)
-         (save-excursion
-           (let ((opoint (point-marker)))
-             (move-marker opoint (region-end))
-             (goto-char (region-beginning))
-             (forward-line 0)
-             (while (< (point) opoint)
+      (cond ((region-active-p)
+             (save-excursion
+               (let ((opoint (point-marker)))
+                 (move-marker opoint (region-end))
+                 (goto-char (region-beginning))
+                 (forward-line 0)
+                 (while (< (point) opoint)
+                   (funcall func arg)
+                   (forward-line 1))
+                 (set-marker opoint nil))))
+            ((progn (forward-line 0) nil))
+            ((py-indent--beginning-of-block-p)
+             (let ((level (current-indentation)))
                (funcall func arg)
-               (forward-line 1))
-             (set-marker opoint nil))))
-        ((progn (forward-line 0) nil))
-        ((py-indent--beginning-of-block-p)
-         (let ((level (current-indentation)))
-           (funcall func arg)
-           (while (and (zerop (forward-line 1))
-                       (> (current-indentation) level))
-             (funcall func arg))))
-        (t (funcall func arg)
-           ;; Move parenthetical constructs or multi-line strings starting on
-           ;; the current line.
-           (let ((pos (point)))
-             (end-of-line)
-             (let* ((state (syntax-ppss))
-                    (start (or (nth 1 state)
-                               (and (nth 3 state) (nth 8 state)))))
-               (when (and start (<= pos start))
-                 (let ((end (point-marker)))
-                   (set-marker end (if (nth 3 state)
-                                       (scan-sexps start 1)
-                                     (scan-lists start 1 0)))
-                   (while (and (zerop (forward-line 1))
-                               (< (point) end))
-                     (funcall func arg))
-                   (set-marker end nil))))))))
+               (while (and (zerop (forward-line 1))
+                           (> (current-indentation) level))
+                 (funcall func arg))))
+            (t (funcall func arg)
+               ;; Move parenthetical constructs or multi-line strings starting
+               ;; on the current line.
+               (let ((pos (point)))
+                 (end-of-line)
+                 (let* ((state (syntax-ppss))
+                        (start (or (nth 1 state)
+                                   (and (nth 3 state) (nth 8 state)))))
+                   (when (and start (<= pos start))
+                     (let ((end (point-marker)))
+                       (set-marker end (if (nth 3 state)
+                                           (scan-sexps start 1)
+                                         (scan-lists start 1 0)))
+                       (while (and (zerop (forward-line 1))
+                                   (< (point) end))
+                         (funcall func arg))
+                       (set-marker end nil))))))))
     (when (< (current-column) (current-indentation))
       (skip-chars-forward " \t"))))
 
 (defalias 'py-indent-dedent
     (py-indent--cmd-create #'py-indent--dedent))
 (defalias 'py-indent-indent
-    (py-indent--cmd-create
-     (lambda (arg) (indent-to (* arg tab-width)))))
+    (py-indent--cmd-create (lambda (arg) (indent-to (* arg tab-width)))))
 
 ;; Only the first physical line of a backslash continuation determines the
 ;; indentation level.
@@ -119,12 +115,12 @@
 
 (define-inline py-indent--eolp ()
   ;; EOL or comment start syntax.
-  (inline-quote
-   (or (eolp) (eq (char-syntax (following-char)) ?<))))
+  (inline-quote (or (eolp) (eq (char-syntax (following-char)) ?<))))
 
 (defun py-indent-function ()
   (let ((col (current-column))
-        forward-sexp-function level)
+        forward-sexp-function
+        level)
     (save-excursion
       (forward-line 0)
       (skip-chars-forward " \t")
@@ -168,11 +164,10 @@
                    (not (= (preceding-char) ?,))
                    ;; Catch the `scan-error' on `forward-sexp' at openparen.
                    (condition-case nil
-                       (progn
-                         (while (not (memq (preceding-char) '(?, ?:)))
-                           (forward-sexp -1)
-                           (forward-comment (- (point))))
-                         t)
+                       (progn (while (not (memq (preceding-char) '(?, ?:)))
+                                (forward-sexp -1)
+                                (forward-comment (- (point))))
+                              t)
                      (scan-error nil)))
               (skip-chars-forward " \t")
               (setq level (if (eolp)
@@ -183,22 +178,21 @@
                 (skip-chars-forward " \t")
                 ;; I.e., we're at a hanging paren.
                 (py-indent--eolp))
-              (setq level
-                    (+ (current-indentation)
-                       (cond (closeparen-hanging-p 0)
-                             ;; Add extra indentation to a block statement's
-                             ;; multiline condition expression to visually
-                             ;; distinguish it from the statement's body.
-                             ((py-indent--beginning-of-block-p)
-                              (* tab-width 2))
-                             (t tab-width)))))
+              (setq level (+ (current-indentation)
+                             (cond (closeparen-hanging-p 0)
+                                   ;; Add extra indentation to a block
+                                   ;; statement's multiline condition
+                                   ;; expression to visually distinguish it
+                                   ;; from the statement's body.
+                                   ((py-indent--beginning-of-block-p)
+                                    (* tab-width 2))
+                                   (t tab-width)))))
              ;; Line up with openparen.
              (t (let ((col (current-column)))
                   ;; Distinguish a block statement's condition expression from
                   ;; the body if necessary.
                   (if (and (py-indent--beginning-of-block-p)
-                           (= col (+ (current-indentation)
-                                     tab-width)))
+                           (= col (+ (current-indentation) tab-width)))
                       (setq level (+ col tab-width))
                     (setq level col)))))))
         ;; Unless point is inside the indentation, keep an already indented

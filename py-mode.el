@@ -1,6 +1,6 @@
 ;;; py-mode.el --- Major mode for Python -*- lexical-binding: t -*-
 
-;; Copyright (c) 2019 Bernhard Pröll
+;; Copyright (c) 2019, 2020 Bernhard Pröll
 
 ;; Author: Bernhard Pröll
 ;; Maintainer: Bernhard Pröll
@@ -27,16 +27,13 @@
 ;;; Code:
 
 (require 'comint)
-(require 'py-indent)
 
-(declare-function py-xref-backend "py-xref")
-(declare-function py-xref--nenv "py-xref")
-(declare-function py-eldoc-documentation-function "py-eldoc")
-(declare-function py-repl-get-process "py-repl")
 (declare-function py-repl-send "py-repl" (proc read &rest input))
-(declare-function py-repl--primary-bounds "py-repl"
-                  (&optional names-only))
+(declare-function py-repl--primary-bounds "py-repl" (&optional names-only))
 
+(autoload 'py-indent-function "py-indent")
+(autoload 'py-indent-indent "py-indent")
+(autoload 'py-indent-dedent "py-indent")
 (autoload 'py-completion-function "py-complete")
 (autoload 'py-eldoc-documentation-function "py-eldoc")
 (autoload 'py-xref-backend "py-xref")
@@ -73,53 +70,26 @@
     table)
   "Syntax table for Python code.")
 
-;; Note that this `beginning-of-defun-function' strictly moves according to the
-;; indentation level it finds at the current position.
 (defun py-beginning-of-defun (&optional arg)
   (or arg (setq arg 1))
-  ;; With an argument greater than 1, always start the second call to
-  ;; `beginning-of-defun-raw' in `end-of-defun' from the previous block
-  ;; statement.
-  (when (and (< arg 0) (eq this-command 'end-of-defun))
-    (forward-comment (- (point))))
-  (let ((level (current-indentation))
-        (n (if (< arg 0) 1 -1)))
-    (if (and (> arg 0)
-             (> (current-column) level)
-             (py-indent--beginning-of-block-p))
-        (move-to-column level)
-      (if (> arg 0)
-          (forward-comment (- (point)))
-        (end-of-line 1)
-        (forward-comment (buffer-size)))
-      (forward-line 0)
-      (while (and (or (> (current-indentation) level)
-                      (looking-at "[ \t]*\\(?:$\\|#\\)")
-                      (and (py-indent--beginning-of-block-p)
-                           (progn
-                             (setq level (current-indentation))
-                             (setq arg (+ arg n))
-                             (/= 0 arg))))
-                  (zerop (forward-line n))))))
-  ;; Backslash continuations.
-  (py-indent--beginning-of-continuation)
-  ;; Multiline block start.
-  (let ((state (syntax-ppss)))
-    (cond ((not (zerop (car state)))
-           (goto-char (car (last (nth 9 state))))
-           (forward-line 0))
-          ((nth 3 state) (goto-char (nth 8 state)))))
-  ;; Return a nil value so that we skip the `beginning-of-line' in
-  ;; `beginning-of-defun'.
-  (progn (back-to-indentation) nil))
+  (if (> arg 0)
+      (forward-comment (- (point)))
+    (end-of-line 1)
+    (forward-comment (buffer-size)))
+  (beginning-of-line 1)
+  (let ((n (if (> arg 0) -1 1)))
+    (while (and (or (not (zerop (current-indentation)))
+                    (looking-at "[ \t]*\\(?:$\\|#\\)")
+                    (progn (setq arg (+ arg n))
+                           (not (zerop arg))))
+                (zerop (forward-line n)))))
+  (not (or (bobp) (eobp))))
 
 (defun py-end-of-defun ()
-  (let ((level (current-indentation)))
-    (while (and (zerop (forward-line 1))
-                (or (> (current-indentation) level)
-                    (looking-at "[ \t]*\\(?:$\\|#\\)")
-                    (nth 8 (syntax-ppss)))))
-    (forward-comment (- (point)))))
+  (while (and (zerop (forward-line 1))
+              (or (not (zerop (current-indentation)))
+                  (looking-at "[ \t]*\\(?:$\\|#\\)"))))
+  (forward-comment (- (point))))
 
 (defconst py--def-rx "^[ \t]*\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+")
 
@@ -136,8 +106,7 @@
 
 (defun py-electric-pair-inhibit (c)
   (if (and (eq (char-syntax c) ?\")
-           (save-excursion
-             (= (skip-chars-backward (string c)) -3)))
+           (save-excursion (= (skip-chars-backward (string c)) -3)))
       (save-excursion
         (when (/= (following-char) c)
           (insert (make-string 3 c)))
@@ -146,8 +115,7 @@
 
 (defun py-electric-pair-skip (c)
   (or (and (eq (char-syntax c) ?\")
-           (save-excursion
-             (< (skip-chars-backward (string c)) -3)))
+           (save-excursion (< (skip-chars-backward (string c)) -3)))
       (funcall (default-value 'electric-pair-skip-self) c)))
 
 ;; Add an additional newline between triple quotes when calling `newline'.
@@ -197,9 +165,8 @@
              ;; Starting quote is escaped.
              ((nth 5 state)
               (goto-char (1+ (match-beginning 0))))
-             (t (put-text-property
-                 start (1+ start)
-                 'syntax-table delimiter)))))))))
+             (t (put-text-property start (1+ start) 'syntax-table
+                                   delimiter)))))))))
 
 (define-derived-mode py-mode prog-mode
   "Py" "Major mode for editing Python code.
@@ -211,8 +178,7 @@
   (setq-local comment-column 40)
   (setq-local comment-use-syntax t)
   (setq-local comment-start "#")
-  (setq-local syntax-propertize-function
-              py-syntax-propertize-function)
+  (setq-local syntax-propertize-function py-syntax-propertize-function)
   (setq font-lock-defaults '(()))
   (setq-local indent-tabs-mode nil)
   (setq-local parse-sexp-ignore-comments t)
@@ -220,14 +186,12 @@
   (setq-local end-of-defun-function #'py-end-of-defun)
   (setq-local imenu-create-index-function #'py-imenu-create-index)
   (add-hook 'xref-backend-functions #'py-xref-backend nil t)
-  (add-hook 'completion-at-point-functions
-            #'py-completion-function nil t)
+  (add-hook 'completion-at-point-functions #'py-completion-function nil t)
   (add-function :override (local 'eldoc-documentation-function)
                 #'py-eldoc-documentation-function)
   (setq-local indent-line-function #'py-indent-function)
   (setq-local electric-pair-pairs '((?\' . ?\') (?\" . ?\")))
-  (setq-local electric-pair-inhibit-predicate
-              #'py-electric-pair-inhibit)
+  (setq-local electric-pair-inhibit-predicate #'py-electric-pair-inhibit)
   (setq-local electric-pair-skip-self #'py-electric-pair-skip)
   (setq-local electric-pair-open-newline-between-pairs
               #'py-electric-pair-open-newline-p)
@@ -256,8 +220,7 @@
           (save-excursion
             (while (re-search-forward rx nil t 1)
               (with-silent-modifications
-	            (put-text-property
-                 (match-beginning 0) (point) 'face 'bold)))))
+	            (put-text-property (match-beginning 0) (point) 'face 'bold)))))
         (pop-to-buffer buf '((display-buffer-reuse-window
                               display-buffer-pop-up-window)))))))
 
@@ -287,8 +250,7 @@
   (or (and (> arg 0) (bolp))
       (end-of-line 1))
   (let (case-fold-search)
-    (and (re-search-forward
-          "^[[:upper:]]\\{2,\\}.*" nil t (- arg))
+    (and (re-search-forward "^[[:upper:]]\\{2,\\}.*" nil t (- arg))
          (goto-char (match-beginning 0))
          t)))
 
