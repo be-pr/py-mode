@@ -27,13 +27,11 @@
 ;;; Code:
 
 (require 'comint)
+(require 'py-indent)
 
 (declare-function py-repl-send "py-repl" (proc read &rest input))
 (declare-function py-repl--primary-bounds "py-repl" (&optional names-only))
 
-(autoload 'py-indent-function "py-indent")
-(autoload 'py-indent-indent "py-indent")
-(autoload 'py-indent-dedent "py-indent")
 (autoload 'py-completion-function "py-complete")
 (autoload 'py-eldoc-documentation-function "py-eldoc")
 (autoload 'py-xref-backend "py-xref")
@@ -43,7 +41,6 @@
 (autoload 'py-repl-get-process "py-repl")
 (autoload 'py-eval-defun "py-repl" nil t)
 (autoload 'py-eval-region "py-repl" nil t)
-(autoload 'py-eval-simple-statement "py-repl" nil t)
 (autoload 'py-eval-last-primary "py-repl" nil t)
 
 (defvar electric-pair-pairs)
@@ -76,7 +73,7 @@
       (forward-comment (- (point)))
     (end-of-line 1)
     (forward-comment (buffer-size)))
-  (beginning-of-line 1)
+  (forward-line 0)
   (let ((n (if (> arg 0) -1 1)))
     (while (and (or (not (zerop (current-indentation)))
                     (looking-at "[ \t]*\\(?:$\\|#\\)")
@@ -143,7 +140,6 @@
     (define-key map [?\C-c?\C-z] 'py-switch-to-repl)
     (define-key map [?\C-\M-x] 'py-eval-defun)
     (define-key map [?\C-c?\C-r] 'py-eval-region)
-    (define-key map [?\C-c?\C-l] 'py-eval-simple-statement)
     (define-key map [remap eval-last-sexp] 'py-eval-last-primary)
     (define-key map [?\C-c?\C-d] 'py-describe-symbol)
     (define-key map [backtab] 'py-indent-dedent)
