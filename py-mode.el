@@ -76,7 +76,7 @@
   (forward-line 0)
   (let ((n (if (> arg 0) -1 1)))
     (while (and (or (not (zerop (current-indentation)))
-                    (looking-at "[ \t]*\\(?:$\\|#\\)")
+                    (looking-at "[ \t]*\\(?:$\\|#\\|\\s)\\)")
                     (progn (setq arg (+ arg n))
                            (not (zerop arg))))
                 (zerop (forward-line n)))))
@@ -85,7 +85,7 @@
 (defun py-end-of-defun ()
   (while (and (zerop (forward-line 1))
               (or (not (zerop (current-indentation)))
-                  (looking-at "[ \t]*\\(?:$\\|#\\)"))))
+                  (looking-at "[ \t]*\\(?:$\\|#\\|\\s)\\)"))))
   (forward-comment (- (point))))
 
 (defconst py--def-rx "^[ \t]*\\(?:\\(?:async[ \t]+\\)?def\\|class\\)[ \t]+")
