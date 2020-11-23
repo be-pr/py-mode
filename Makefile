@@ -17,4 +17,4 @@ test : compile $(TESTF)
 clean :
 	rm $(ELCS)
 
-.PHONY : compile test clean
+.PHONY : all compile test clean

@@ -39,12 +39,12 @@
     ;; Skip any whitespace character following the backslash.
     (skip-chars-backward " \t")
     ;; Jump over backslash continuations.
-    (while (= (preceding-char) ?\\)
+    (while (eq (char-before) ?\\)
       ;; Skip comment lines.
       (forward-comment (point-max))
       (end-of-line)
       (skip-chars-backward " \t"))
-    (and (= (preceding-char) ?:)
+    (and (eq (char-before) ?:)
          ;; Not inside string or comment.
          (not (nth 8 (syntax-ppss))))))
 
@@ -57,7 +57,7 @@
   (lambda (arg)
     (interactive "p")
     (save-excursion
-      (cond ((region-active-p)
+      (cond ((use-region-p)
              (save-excursion
                (let ((opoint (point-marker)))
                  (move-marker opoint (region-end))
@@ -106,7 +106,7 @@
     (save-excursion
       (forward-comment (- (point)))
       (skip-chars-backward " \t")
-      (while (= (preceding-char) ?\\)
+      (while (eq (char-before) ?\\)
         (forward-line 0)
         (setq pos (point))
         (forward-comment (- (point)))
@@ -115,7 +115,7 @@
 
 (define-inline py-indent--eolp ()
   ;; EOL or comment start syntax.
-  (inline-quote (or (eolp) (eq (char-syntax (following-char)) ?<))))
+  (inline-quote (or (eolp) (eq (char-syntax (char-after)) ?<))))
 
 (defun py-indent-function ()
   (let ((col (current-column))
@@ -134,7 +134,7 @@
         ;; Increase indentation level after colons.
         ((save-excursion
            (forward-comment (- (point)))
-           (when (= (preceding-char) ?:)
+           (when (eq (char-before) ?:)
              (forward-line 0)
              (if (zerop (car (syntax-ppss)))
                  (py-indent--beginning-of-continuation)
@@ -152,7 +152,7 @@
          (let ((openparen (car (last (nth 9 (syntax-ppss)))))
                (closeparen-hanging-p
                 (save-excursion
-                  (and (eq (char-syntax (following-char)) ?\))
+                  (and (eq (char-syntax (char-after)) ?\))
                        (skip-syntax-forward ")")
                        (skip-chars-forward " \t")
                        (py-indent--eolp)))))
@@ -161,10 +161,10 @@
              ;; Inside dictionaries, align values with their keys.
              ((and (not closeparen-hanging-p)
                    (eq (char-after openparen) ?\{)
-                   (not (= (preceding-char) ?,))
+                   (not (eq (char-before) ?,))
                    ;; Catch the `scan-error' on `forward-sexp' at openparen.
                    (condition-case nil
-                       (progn (while (not (memq (preceding-char) '(?, ?:)))
+                       (progn (while (not (memq (char-before) '(?, ?:)))
                                 (forward-sexp -1)
                                 (forward-comment (- (point))))
                               t)

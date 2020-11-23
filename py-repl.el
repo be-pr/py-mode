@@ -106,7 +106,7 @@
           (unless (zerop (buffer-size out))
             (with-current-buffer out
               (if (not read) (buffer-string)
-                (when (= (following-char) ?\()
+                (when (= (char-after) ?\()
                   (condition-case nil
                       (read out)
                     (invalid-read-syntax nil)))))))
@@ -137,7 +137,7 @@
 (defun py-repl--backward-decorators ()
   (let ((orig (point)) decorated)
     (while (and (zerop (forward-line -1))
-                (or (and (= (following-char) ?@)
+                (or (and (= (char-after) ?@)
                          (setq decorated t))
                     (progn (skip-chars-forward " \t")
                            (eolp)))))
@@ -190,7 +190,7 @@
     (deactivate-mark)))
 
 (defun py-repl--backward-token (&optional names-only)
-  (let* ((c (preceding-char))
+  (let* ((c (char-before))
          (stx (char-syntax c))
          forward-sexp-function)
     (cond ((bobp) nil)

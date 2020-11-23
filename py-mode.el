@@ -105,7 +105,7 @@
   (if (and (eq (char-syntax c) ?\")
            (save-excursion (= (skip-chars-backward (string c)) -3)))
       (save-excursion
-        (when (/= (following-char) c)
+        (when (/= (char-after) c)
           (insert (make-string 3 c)))
         t)
     (funcall (default-value 'electric-pair-inhibit-predicate) c)))
